@@ -102,6 +102,21 @@ export interface Engineer {
   updatedAt: string;
 }
 
+// Client User - External access with strict scoping
+export interface ClientUser {
+  id: string; // e.g., "user_client_123"
+  clientId: string; // STRICT foreign key to ClientProfile
+  email: string;
+  name: string;
+  role: 'client_admin' | 'client_viewer';
+  status: 'invited' | 'active' | 'revoked';
+  invitedBy: string; // Engineer ID
+  invitedAt: string;
+  lastLogin?: string;
+  avatarUrl?: string;
+  passwordHash?: string; // For credentials login
+}
+
 // Artifact - Knowledge documents, videos, transcripts
 export type ArtifactType =
   | 'scope-document'
@@ -139,6 +154,9 @@ export interface Artifact {
   content?: string; // Text content or transcript
   fileUrl?: string; // For binary files stored separately
   metadata: ArtifactMetadata;
+  visibility: 'internal-only' | 'client-visible'; // DEFAULT: 'internal-only'
+  sharedBy?: string; // Engineer ID
+  sharedAt?: string;
   embedding?: number[]; // Deprecated: Legacy single embedding
   embeddings?: ArtifactEmbedding[]; // NEW: Chunked embeddings for large artifacts
   embeddingStatus?: 'pending' | 'processing' | 'completed' | 'failed'; // NEW: Track embedding state
@@ -203,6 +221,119 @@ export interface CVSSScore {
   environmentalScore?: number;
 }
 
+// ============================================================================
+// Remediation Lineage System
+// ============================================================================
+
+export type RemediationType =
+  | 'code-fix'
+  | 'config-change'
+  | 'infrastructure-update'
+  | 'process-change'
+  | 'compensating-control'
+  | 'third-party-patch'
+  | 'dependency-update'
+  | 'architectural-change'
+  | 'other';
+
+export type RemediationOutcome =
+  | 'successful'
+  | 'partially-successful'
+  | 'failed'
+  | 'pending-verification'
+  | 'reverted'
+  | 'superseded';
+
+export interface RemediationEvent {
+  id: string;
+  findingId: string;
+  engagementId: string;
+  type: RemediationType;
+
+  // Core details
+  description: string;
+  implementedBy: string; // Engineer or ClientUser ID
+  implementedAt: string;
+
+  // Verification tracking
+  verifiedAt?: string;
+  verifiedBy?: string; // Engineer ID
+  verificationEngagementId?: string; // Engagement where verification occurred
+  outcome: RemediationOutcome;
+  verificationNotes?: string;
+
+  // Evidence
+  evidence?: EvidenceFile[];
+
+  // Effort tracking
+  estimatedEffort?: string; // e.g., "2 hours", "1 day", "1 week"
+  actualEffort?: string;
+
+  // Metadata for intelligence
+  metadata: {
+    similarFindingsCount?: number; // How many similar findings this remediation could apply to
+    reappeared?: boolean; // Did the finding reappear after this remediation?
+    clientReported?: boolean; // Was this reported by client?
+    automated?: boolean; // Was this an automated fix?
+    [key: string]: any;
+  };
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Remediation suggestion from AI/historical analysis
+export interface RemediationSuggestion {
+  approach: string;
+  type: RemediationType;
+  successRate: number; // 0-1
+  sampleSize: number; // How many historical attempts
+  averageEffort?: string;
+  warnings?: string[]; // Known failure modes
+  examples?: {
+    findingId: string;
+    outcome: RemediationOutcome;
+    notes: string;
+  }[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+// ============================================================================
+// Retest Request System (Simpler workflow)
+// ============================================================================
+
+export type RetestStatus = 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+
+export interface RetestRequest {
+  id: string;
+  findingId: string;
+  engagementId: string;
+  clientId: string;
+
+  // Request details
+  requestedBy: string; // ClientUser ID
+  requestedAt: string;
+  clientNotes?: string; // Optional: "We've updated the authentication flow"
+
+  // Assignment
+  assignedTo?: string; // Engineer ID
+  assignedAt?: string;
+
+  // Status tracking
+  status: RetestStatus;
+
+  // Completion
+  completedAt?: string;
+  completedBy?: string; // Engineer ID
+  retestNotes?: string; // Engineer's notes after retest
+
+  // Result - updates the finding status when completed
+  newFindingStatus?: FindingStatus; // 'Resolved', 'In Progress', etc.
+
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Finding interface with discriminator and optional fields for all assessment types
 // The findingType field determines which optional fields are relevant
 export interface Finding {
@@ -220,6 +351,9 @@ export interface Finding {
   discoveredBy?: string; // Engineer ID who discovered this finding
   createdAt: string;
   updatedAt: string;
+
+  // Internal Notes (Hidden from Client)
+  internalNotes?: string;
 
   // Penetration Testing fields (required when findingType === 'penetration' or 'infrastructure')
   category?: string;
@@ -259,6 +393,9 @@ export interface Finding {
   riskAssessment?: string;
   recommendedDesignChanges?: string;
   implementationPriority?: 'Critical' | 'High' | 'Medium' | 'Low';
+
+  // Remediation Lineage - track all fix attempts
+  remediationHistory?: RemediationEvent[];
 }
 
 export type SectionType = 'standard' | 'custom';
@@ -410,6 +547,10 @@ export interface ReportConfiguration {
   coverOverride?: CoverSettings;
 }
 
+// Alias for convenience
+export type ReportConfig = ReportConfiguration;
+
+
 export interface Engagement {
   id: string;
   serviceProviderId: string;
@@ -422,6 +563,13 @@ export interface Engagement {
   templateId: TemplateType;
   reportConfig?: ReportConfiguration; // New field for customization
   status: 'Draft' | 'In Progress' | 'Review' | 'Completed' | 'Delivered';
+  version?: number; // 1, 2, 3...
+  publishedVersions?: {
+    version: number;
+    publishedAt: string;
+    publishedBy?: string;
+    changeNotes?: string;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -434,5 +582,67 @@ export interface AppState {
   artifacts: Artifact[]; // NEW
   engagements: Engagement[];
   templates: ReportTemplate[];
+  clientUsers: ClientUser[]; // NEW
   currentEngagementId?: string;
 }
+
+// ============================================================================
+// Component Registry - Track Application Components Across Findings
+// ============================================================================
+
+export type ComponentType =
+  | 'endpoint'       // REST/GraphQL endpoints
+  | 'service'        // Backend services/modules
+  | 'database'       // Tables, collections
+  | 'file'           // File systems, uploads
+  | 'external-api'   // Third-party integrations
+  | 'frontend'       // UI components
+  | 'infrastructure' // Servers, containers
+  | 'other';
+
+export type TrustZone =
+  | 'public'         // Internet-facing
+  | 'authenticated'  // Requires login
+  | 'internal'       // Internal services only
+  | 'admin'          // Admin-only
+  | 'database'       // Data layer
+  | 'unknown';
+
+export interface Component {
+  id: string;
+  applicationId: string; // Scope to application
+  name: string; // e.g., "/api/users/login", "UserService", "users_table"
+  type: ComponentType;
+  trustZone: TrustZone;
+  description?: string;
+  metadata?: {
+    technology?: string; // e.g., "Node.js", "PostgreSQL"
+    framework?: string; // e.g., "Express", "React"
+    authentication?: boolean;
+    userInput?: boolean; // Does it handle user input?
+  };
+  findingIds: string[]; // Findings that mention this component
+  firstSeen: string; // ISO date
+  lastSeen: string; // ISO date
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComponentFinding {
+  componentId: string;
+  findingId: string;
+  role: 'affected' | 'related' | 'remediation-target';
+  extractionMethod: 'manual' | 'auto-ner' | 'auto-pattern';
+  confidence: number; // 0-1
+  linkedAt: string;
+}
+
+export interface ExtractedComponent {
+  name: string;
+  type: ComponentType;
+  confidence: number;
+  extractionMethod: 'auto-pattern' | 'auto-ner';
+  context?: string; // Text snippet showing where it was found
+  suggestedTrustZone?: TrustZone;
+}
+

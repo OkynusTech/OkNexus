@@ -1,49 +1,14 @@
-import React from "react";
+import { ShieldCheck } from 'lucide-react';
 
-import { cn } from "@/lib/utils";
-
-import { Badge } from "./badge";
-
-export interface LogoProps extends React.HTMLAttributes<HTMLDivElement> {
-  image: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  name: string;
-  version?: string;
-  width?: number;
-  height?: number;
-  showName?: boolean;
-  badge?: string;
-}
-
-export default function Logo({
-  className,
-  image: SvgImage,
-  name,
-  version,
-  width = 24,
-  height = 24,
-  showName = true,
-  badge,
-  ...props
-}: LogoProps) {
+export function Logo({ className = "", iconClassName = "h-6 w-6" }: { className?: string, iconClassName?: string }) {
   return (
-    <div
-      data-slot="logo"
-      className={cn("flex items-center gap-2 text-sm font-medium", className)}
-      {...props}
-    >
-      <SvgImage
-        width={width}
-        height={height}
-        aria-hidden="true"
-        className="max-h-full max-w-full opacity-70"
-      />
-      <span className={cn(!showName && "sr-only")}>{name}</span>
-      {version && <span className="text-muted-foreground">{version}</span>}
-      {badge && (
-        <Badge variant="brand" size="sm">
-          {badge}
-        </Badge>
-      )}
+    <div className={`flex items-center gap-2 font-bold text-xl ${className}`}>
+      <div className="flex items-center justify-center rounded-md bg-primary/10 p-1">
+        <ShieldCheck className={`text-primary ${iconClassName}`} />
+      </div>
+      <span className="bg-gradient-to-tr from-purple-600 to-blue-600 bg-clip-text text-transparent">
+        OkAxis
+      </span>
     </div>
   );
 }

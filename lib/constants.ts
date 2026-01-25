@@ -204,8 +204,8 @@ export const APPROVED_FONTS = [
 ] as const;
 
 // Helper to create standard sections
-const createStandardSections = (): any[] => [
-    { id: 'coverPage', title: 'Cover Page', type: 'standard', isVisible: true, isLocked: true },
+export const createStandardSections = (): any[] => [
+    { id: 'coverPage', title: 'Cover Page', type: 'standard', isVisible: true, isLocked: false },
     { id: 'confidentialityNotice', title: 'Confidentiality Notice', type: 'standard', isVisible: true },
     { id: 'executiveSummary', title: 'Executive Summary', type: 'standard', isVisible: true },
     { id: 'historicalComparison', title: 'Historical Comparison', type: 'standard', isVisible: true },
@@ -217,6 +217,7 @@ const createStandardSections = (): any[] => [
     { id: 'recommendations', title: 'Recommendations', type: 'standard', isVisible: true },
     { id: 'conclusion', title: 'Conclusion', type: 'standard', isVisible: true },
 ];
+
 
 export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     enterprise: {

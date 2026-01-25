@@ -1,4 +1,4 @@
-import { AppState, ClientProfile, Engagement, ServiceProviderProfile, ReportTemplate, ValidationResult, Application, Engineer, Artifact, ArtifactScope, ArtifactType } from './types';
+import { AppState, ClientProfile, Engagement, ServiceProviderProfile, ReportTemplate, ValidationResult, Application, Engineer, Artifact, ArtifactScope, ArtifactType, Component, ComponentFinding, ExtractedComponent, ComponentType, TrustZone, ClientUser, RemediationEvent, RemediationOutcome, RetestRequest, RetestStatus, FindingStatus } from './types';
 import { REPORT_TEMPLATES as SYSTEM_TEMPLATES } from './constants';
 import { validateTemplateCompleteness } from './template-validation';
 
@@ -13,6 +13,8 @@ const getDefaultState = (): AppState => ({
     artifacts: [],
     engagements: [],
     templates: [],
+    clientUsers: [],
+    retestRequests: [], // New: Retest queue
 });
 
 // Load data from localStorage
@@ -176,6 +178,84 @@ export const getAllClients = (): ClientProfile[] => {
     const state = loadState();
     return state.clients;
 };
+
+// Client User CRUD operations
+export const createClientUser = (user: Omit<ClientUser, 'id'>): ClientUser => {
+    const newUser: ClientUser = {
+        ...user,
+        id: `user_client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    };
+
+    const state = loadState();
+    if (!state.clientUsers) state.clientUsers = [];
+    state.clientUsers.push(newUser);
+    saveState(state);
+
+    return newUser;
+};
+
+export const updateClientUser = (id: string, updates: Partial<ClientUser>): ClientUser | null => {
+    const state = loadState();
+    if (!state.clientUsers) return null;
+
+    const index = state.clientUsers.findIndex(u => u.id === id);
+    if (index === -1) return null;
+
+    state.clientUsers[index] = {
+        ...state.clientUsers[index],
+        ...updates,
+        id, // Ensure ID doesn't change
+    };
+
+    saveState(state);
+    return state.clientUsers[index];
+};
+
+export const deleteClientUser = (id: string): boolean => {
+    const state = loadState();
+    if (!state.clientUsers) return false;
+
+    const initialLength = state.clientUsers.length;
+    state.clientUsers = state.clientUsers.filter(u => u.id !== id);
+
+    if (state.clientUsers.length < initialLength) {
+        saveState(state);
+        return true;
+    }
+    return false;
+};
+
+export const getClientUsers = (clientId: string): ClientUser[] => {
+    const state = loadState();
+
+    // Auto-seed if empty (for MVP demo)
+    if (!state.clientUsers || state.clientUsers.length === 0) {
+        state.clientUsers = [];
+        state.clients.forEach(client => {
+            state.clientUsers.push({
+                id: `cu-${Math.random().toString(36).substr(2, 9)}`,
+                clientId: client.id,
+                email: `admin@${client.companyName.toLowerCase().replace(/\s+/g, '')}.com`,
+                name: `${client.companyName} Admin`,
+                role: 'client_admin',
+                status: 'active',
+                invitedBy: 'system',
+                invitedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+            } as ClientUser);
+        });
+        saveState(state);
+    }
+
+    return state.clientUsers.filter(u => u.clientId === clientId);
+};
+
+export const getClientUserByEmail = (email: string): ClientUser | null => {
+    const state = loadState();
+    if (!state.clientUsers) return null;
+    const normalizedEmail = email.trim().toLowerCase();
+    return state.clientUsers.find(u => u.email.trim().toLowerCase() === normalizedEmail) || null;
+}
 
 // ============================================================================
 // Data Migration - V1 to V2
@@ -414,6 +494,7 @@ export const createArtifact = (artifact: Omit<Artifact, 'id' | 'uploadedAt' | 'u
         id: `art_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         uploadedAt: now,
         updatedAt: now,
+        visibility: 'internal',
     };
 
     const state = loadState();
@@ -506,7 +587,218 @@ export const getArtifactsByScope = (scope: ArtifactScope, scopeId: string): Arti
     const state = loadState();
     if (!state.artifacts) return [];
     return state.artifacts.filter(a => a.scope === scope && a.scopeId === scopeId);
-};
+}
+
+// ============================================================================
+// Component Registry Storage
+// ============================================================================
+
+const COMPONENTS_KEY = 'components';
+const COMPONENT_FINDINGS_KEY = 'component_findings';
+
+export function createComponent(data: Omit<Component, 'id' | 'createdAt' | 'updatedAt'>): Component {
+    const component: Component = {
+        id: `comp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
+
+    const components = getAllComponents();
+    components.push(component);
+    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+
+    return component;
+}
+
+export function getAllComponents(): Component[] {
+    try {
+        const data = localStorage.getItem(COMPONENTS_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (error) {
+        console.error('Error loading components:', error);
+        return [];
+    }
+}
+
+export function getComponentById(id: string): Component | undefined {
+    return getAllComponents().find(c => c.id === id);
+}
+
+export function getComponentsByApplication(applicationId: string): Component[] {
+    return getAllComponents().filter(c => c.applicationId === applicationId);
+}
+
+export function getComponentByName(name: string, applicationId: string): Component | undefined {
+    return getAllComponents().find(c =>
+        c.name === name && c.applicationId === applicationId
+    );
+}
+
+export function updateComponent(id: string, updates: Partial<Component>): Component | null {
+    const components = getAllComponents();
+    const index = components.findIndex(c => c.id === id);
+
+    if (index === -1) return null;
+
+    components[index] = {
+        ...components[index],
+        ...updates,
+        updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+    return components[index];
+}
+
+export function deleteComponent(id: string): boolean {
+    const components = getAllComponents();
+    const filtered = components.filter(c => c.id !== id);
+
+    if (filtered.length === components.length) return false;
+
+    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(filtered));
+
+    // Also delete associated component-finding links
+    const links = getAllComponentFindings();
+    const filteredLinks = links.filter(l => l.componentId !== id);
+    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filteredLinks));
+
+    return true;
+}
+
+// Component-Finding Link Functions
+export function linkComponentToFinding(
+    componentId: string,
+    findingId: string,
+    role: ComponentFinding['role'],
+    extractionMethod: ComponentFinding['extractionMethod'],
+    confidence: number
+): ComponentFinding {
+    const link: ComponentFinding = {
+        componentId,
+        findingId,
+        role,
+        extractionMethod,
+        confidence,
+        linkedAt: new Date().toISOString(),
+    };
+
+    const links = getAllComponentFindings();
+
+    // Check if link already exists
+    const existingIndex = links.findIndex(
+        l => l.componentId === componentId && l.findingId === findingId
+    );
+
+    if (existingIndex !== -1) {
+        // Update existing link
+        links[existingIndex] = link;
+    } else {
+        // Add new link
+        links.push(link);
+    }
+
+    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(links));
+
+    // Update component's findingIds array
+    const component = getComponentById(componentId);
+    if (component && !component.findingIds.includes(findingId)) {
+        component.findingIds.push(findingId);
+        component.lastSeen = new Date().toISOString();
+        updateComponent(component.id, component);
+    }
+
+    return link;
+}
+
+export function getAllComponentFindings(): ComponentFinding[] {
+    try {
+        const data = localStorage.getItem(COMPONENT_FINDINGS_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (error) {
+        console.error('Error loading component findings:', error);
+        return [];
+    }
+}
+
+export function getComponentFindingsByComponent(componentId: string): ComponentFinding[] {
+    return getAllComponentFindings().filter(l => l.componentId === componentId);
+}
+
+export function getComponentFindingsByFinding(findingId: string): ComponentFinding[] {
+    return getAllComponentFindings().filter(l => l.findingId === findingId);
+}
+
+export function unlinkComponentFromFinding(componentId: string, findingId: string): boolean {
+    const links = getAllComponentFindings();
+    const filtered = links.filter(
+        l => !(l.componentId === componentId && l.findingId === findingId)
+    );
+
+    if (filtered.length === links.length) return false;
+
+    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filtered));
+
+    // Update component's findingIds array
+    const component = getComponentById(componentId);
+    if (component) {
+        component.findingIds = component.findingIds.filter(id => id !== findingId);
+        updateComponent(component.id, component);
+    }
+
+    return true;
+}
+
+// Scoped Component Queries
+export function getEngagementById(id: string): Engagement | undefined {
+    const state = loadState();
+    return state.engagements.find(e => e.id === id);
+}
+
+export function getComponentsByClient(clientId: string): Component[] {
+    const applications = getAllApplications().filter(a => a.clientId === clientId);
+    const appIds = applications.map(a => a.id);
+    return getAllComponents().filter(c => appIds.includes(c.applicationId));
+}
+
+export function getComponentsByEngagement(engagementId: string): Component[] {
+    const engagement = getEngagementById(engagementId);
+    if (!engagement) return [];
+
+    const findingIds = engagement.findings.map(f => f.id!).filter(Boolean);
+    const links = getAllComponentFindings().filter(l => findingIds.includes(l.findingId));
+    const componentIds = [...new Set(links.map(l => l.componentId))];
+
+    return getAllComponents().filter(c => componentIds.includes(c.id));
+}
+
+export interface ComponentStats {
+    totalComponents: number;
+    byType: Record<ComponentType, number>;
+    byTrustZone: Record<TrustZone, number>;
+    componentsWithFindings: number;
+}
+
+export function getComponentStats(components: Component[]): ComponentStats {
+    const stats: ComponentStats = {
+        totalComponents: components.length,
+        byType: {} as Record<ComponentType, number>,
+        byTrustZone: {} as Record<TrustZone, number>,
+        componentsWithFindings: 0,
+    };
+
+    components.forEach(comp => {
+        stats.byType[comp.type] = (stats.byType[comp.type] || 0) + 1;
+        stats.byTrustZone[comp.trustZone] = (stats.byTrustZone[comp.trustZone] || 0) + 1;
+
+        if (comp.findingIds.length > 0) {
+            stats.componentsWithFindings++;
+        }
+    });
+
+    return stats;
+}
 
 export const getArtifactsByType = (type: ArtifactType): Artifact[] => {
     const state = loadState();
@@ -684,6 +976,294 @@ export const importData = (jsonData: string): boolean => {
         console.error('Error importing data:', err);
         return false;
     }
+};
+
+// ============================================================================
+// Remediation Event Management
+// ============================================================================
+
+export const createRemediationEvent = (
+    findingId: string,
+    engagementId: string,
+    event: Omit<RemediationEvent, 'id' | 'createdAt' | 'updatedAt'>
+): RemediationEvent => {
+    const state = loadState();
+    const now = new Date().toISOString();
+
+    const newEvent: RemediationEvent = {
+        ...event,
+        findingId,
+        engagementId,
+        id: `rem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    // Update the finding's remediation history
+    const engagement = state.engagements.find(e => e.id === engagementId);
+    if (engagement) {
+        const finding = engagement.findings.find(f => f.id === findingId);
+        if (finding) {
+            if (!finding.remediationHistory) {
+                finding.remediationHistory = [];
+            }
+            finding.remediationHistory.push(newEvent);
+            saveState(state);
+        }
+    }
+
+    return newEvent;
+};
+
+export const updateRemediationEvent = (
+    eventId: string,
+    updates: Partial<Omit<RemediationEvent, 'id' | 'findingId' | 'engagementId' | 'createdAt'>>
+): RemediationEvent | null => {
+    const state = loadState();
+    const now = new Date().toISOString();
+
+    // Find the remediation event across all engagements and findings
+    for (const engagement of state.engagements) {
+        for (const finding of engagement.findings) {
+            if (finding.remediationHistory) {
+                const eventIndex = finding.remediationHistory.findIndex(e => e.id === eventId);
+                if (eventIndex !== -1) {
+                    finding.remediationHistory[eventIndex] = {
+                        ...finding.remediationHistory[eventIndex],
+                        ...updates,
+                        updatedAt: now,
+                    };
+                    saveState(state);
+                    return finding.remediationHistory[eventIndex];
+                }
+            }
+        }
+    }
+
+    return null;
+};
+
+export const getRemediationEvent = (eventId: string): RemediationEvent | null => {
+    const state = loadState();
+
+    for (const engagement of state.engagements) {
+        for (const finding of engagement.findings) {
+            if (finding.remediationHistory) {
+                const event = finding.remediationHistory.find(e => e.id === eventId);
+                if (event) return event;
+            }
+        }
+    }
+
+    return null;
+};
+
+export const getRemediationHistory = (findingId: string): RemediationEvent[] => {
+    const state = loadState();
+
+    for (const engagement of state.engagements) {
+        const finding = engagement.findings.find(f => f.id === findingId);
+        if (finding && finding.remediationHistory) {
+            return finding.remediationHistory;
+        }
+    }
+
+    return [];
+};
+
+// Get all remediation events across a client (for intelligence analysis)
+export const getClientRemediationEvents = (clientId: string): RemediationEvent[] => {
+    const state = loadState();
+    const events: RemediationEvent[] = [];
+
+    const clientEngagements = state.engagements.filter(e => e.clientId === clientId);
+    clientEngagements.forEach(engagement => {
+        engagement.findings.forEach(finding => {
+            if (finding.remediationHistory) {
+                events.push(...finding.remediationHistory);
+            }
+        });
+    });
+
+    return events;
+};
+
+// Get remediation events by outcome (for pattern analysis)
+export const getRemediationEventsByOutcome = (
+    outcome: RemediationOutcome,
+    clientId?: string
+): RemediationEvent[] => {
+    const state = loadState();
+    let engagements = state.engagements;
+
+    if (clientId) {
+        engagements = engagements.filter(e => e.clientId === clientId);
+    }
+
+    const events: RemediationEvent[] = [];
+    engagements.forEach(engagement => {
+        engagement.findings.forEach(finding => {
+            if (finding.remediationHistory) {
+                const filteredEvents = finding.remediationHistory.filter(e => e.outcome === outcome);
+                events.push(...filteredEvents);
+            }
+        });
+    });
+
+    return events;
+};
+
+// Verify a remediation event (typically done in a re-test engagement)
+export const verifyRemediationEvent = (
+    eventId: string,
+    verificationData: {
+        outcome: RemediationOutcome;
+        verifiedBy: string;
+        verificationEngagementId?: string;
+        verificationNotes?: string;
+        actualEffort?: string;
+    }
+): RemediationEvent | null => {
+    const now = new Date().toISOString();
+
+    return updateRemediationEvent(eventId, {
+        ...verificationData,
+        verifiedAt: now,
+    });
+};
+
+// ============================================================================
+// Retest Request Management (Simpler workflow)
+// ============================================================================
+
+export const createRetestRequest = (
+    findingId: string,
+    engagementId: string,
+    clientId: string,
+    requestedBy: string, // ClientUser ID
+    clientNotes?: string
+): RetestRequest => {
+    const state = loadState();
+    const now = new Date().toISOString();
+
+    const newRequest: RetestRequest = {
+        id: `retest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        findingId,
+        engagementId,
+        clientId,
+        requestedBy,
+        clientNotes,
+        requestedAt: now,
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    if (!state.retestRequests) {
+        state.retestRequests = [];
+    }
+
+    state.retestRequests.push(newRequest);
+    saveState(state);
+
+    return newRequest;
+};
+
+export const updateRetestRequest = (
+    requestId: string,
+    updates: Partial<Omit<RetestRequest, 'id' | 'createdAt'>>
+): RetestRequest | null => {
+    const state = loadState();
+    const now = new Date().toISOString();
+
+    if (!state.retestRequests) return null;
+
+    const index = state.retestRequests.findIndex(r => r.id === requestId);
+    if (index === -1) return null;
+
+    state.retestRequests[index] = {
+        ...state.retestRequests[index],
+        ...updates,
+        updatedAt: now,
+    };
+
+    saveState(state);
+    return state.retestRequests[index];
+};
+
+export const assignRetestRequest = (
+    requestId: string,
+    engineerId: string
+): RetestRequest | null => {
+    const now = new Date().toISOString();
+    return updateRetestRequest(requestId, {
+        assignedTo: engineerId,
+        assignedAt: now,
+        status: 'assigned',
+    });
+};
+
+export const completeRetestRequest = (
+    requestId: string,
+    completedBy: string,
+    newFindingStatus: FindingStatus,
+    retestNotes?: string
+): RetestRequest | null => {
+    const state = loadState();
+    const now = new Date().toISOString();
+
+    // Update the retest request
+    const updated = updateRetestRequest(requestId, {
+        status: 'completed',
+        completedBy,
+        completedAt: now,
+        newFindingStatus,
+        retestNotes,
+    });
+
+    if (!updated) return null;
+
+    // Update the finding status
+    const engagement = state.engagements.find(e => e.id === updated.engagementId);
+    if (engagement) {
+        const finding = engagement.findings.find(f => f.id === updated.findingId);
+        if (finding) {
+            finding.status = newFindingStatus;
+            finding.updatedAt = now;
+            saveState(state);
+        }
+    }
+
+    return updated;
+};
+
+export const getRetestRequest = (requestId: string): RetestRequest | null => {
+    const state = loadState();
+    if (!state.retestRequests) return null;
+    return state.retestRequests.find(r => r.id === requestId) || null;
+};
+
+export const getAllRetestRequests = (): RetestRequest[] => {
+    const state = loadState();
+    return state.retestRequests || [];
+};
+
+export const getPendingRetestRequests = (): RetestRequest[] => {
+    const state = loadState();
+    if (!state.retestRequests) return [];
+    return state.retestRequests.filter(r => r.status === 'pending' || r.status === 'assigned' || r.status === 'in-progress');
+};
+
+export const getRetestRequestsByClient = (clientId: string): RetestRequest[] => {
+    const state = loadState();
+    if (!state.retestRequests) return [];
+    return state.retestRequests.filter(r => r.clientId === clientId);
+};
+
+export const getRetestRequestsByEngineer = (engineerId: string): RetestRequest[] => {
+    const state = loadState();
+    if (!state.retestRequests) return [];
+    return state.retestRequests.filter(r => r.assignedTo === engineerId);
 };
 
 // Clear all data

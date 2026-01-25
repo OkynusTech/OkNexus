@@ -9,17 +9,34 @@ import {
     Code, Quote, Link as LinkIcon, Image as ImageIcon, Table, Eye, Edit2
 } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { AIRefinementToolbar } from '@/components/ui/ai-refinement-toolbar';
+import { ContextMetadata } from '@/app/actions/ai-actions';
 
 interface MarkdownEditorProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     minHeight?: string;
+    context?: string;
+    contextData?: ContextMetadata;
 }
 
-export function MarkdownEditor({ value, onChange, placeholder = 'Content...', minHeight = '300px' }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, placeholder = 'Content...', minHeight = '300px', context, contextData }: MarkdownEditorProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [fileUploadLoading, setFileUploadLoading] = useState(false);
+    const [selectedText, setSelectedText] = useState('');
+
+    const handleSelect = () => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        if (start !== end) {
+            setSelectedText(value.substring(start, end));
+        } else {
+            setSelectedText('');
+        }
+    };
 
     const insertText = (before: string, after: string = '') => {
         const textarea = textareaRef.current;
@@ -68,7 +85,7 @@ export function MarkdownEditor({ value, onChange, placeholder = 'Content...', mi
     };
 
     return (
-        <div className="flex flex-col border border-input rounded-md overflow-hidden bg-background">
+        <div className="flex flex-col border border-input rounded-md bg-background">
             <Tabs defaultValue="edit" className="w-full">
                 <div className="flex items-center justify-between border-b px-2 py-2 bg-muted/40">
                     <TabsList className="grid w-[180px] grid-cols-2">
@@ -118,12 +135,70 @@ export function MarkdownEditor({ value, onChange, placeholder = 'Content...', mi
                         </div>
 
                         <ToolbarButton icon={<Table className="h-4 w-4" />} onClick={() => insertText('| Header | Header |\n| --- | --- |\n| Cell | Cell |')} tooltip="Table" />
+
+                        <div className="flex-1" />
+
+                        {/* AI Refinement Toolbar */}
+                        <div className="flex items-center gap-2 border-l pl-2 ml-1 border-blue-200 dark:border-slate-600">
+                            <AIRefinementToolbar
+                                context={context}
+                                contextData={contextData}
+                                selectedText={selectedText || value}
+                                onReplace={(text) => {
+                                    if (selectedText) {
+                                        // Replace the selected text with the new text
+                                        const textarea = textareaRef.current;
+                                        if (textarea) {
+                                            const start = textarea.selectionStart;
+                                            const end = textarea.selectionEnd;
+                                            const previousValue = textarea.value;
+                                            const newTextValue = previousValue.substring(0, start) + text + previousValue.substring(end);
+                                            onChange(newTextValue);
+                                            requestAnimationFrame(() => {
+                                                textarea.focus();
+                                                textarea.setSelectionRange(start + text.length, start + text.length);
+                                                handleSelect();
+                                            });
+                                        }
+                                    } else {
+                                        // Replace the entire content
+                                        onChange(text);
+                                    }
+                                }}
+                                onAppend={(text) => {
+                                    if (selectedText) {
+                                        // Append after the selected text
+                                        const textarea = textareaRef.current;
+                                        if (textarea) {
+                                            const end = textarea.selectionEnd;
+                                            const previousValue = textarea.value;
+                                            const newTextValue = previousValue.substring(0, end) + '\n' + text + previousValue.substring(end);
+                                            onChange(newTextValue);
+                                            requestAnimationFrame(() => {
+                                                textarea.focus();
+                                                textarea.setSelectionRange(end + text.length + 1, end + text.length + 1); // +1 for newline
+                                                handleSelect();
+                                            });
+                                        }
+                                    } else {
+                                        // Append to the end of the entire content
+                                        onChange(value + '\n' + text);
+                                    }
+                                }}
+                            />
+                        </div>
                     </div>
 
                     <Textarea
                         ref={textareaRef}
                         value={value}
-                        onChange={(e) => onChange(e.target.value)}
+                        onChange={(e) => {
+                            onChange(e.target.value);
+                            handleSelect();
+                        }}
+                        onSelect={handleSelect}
+                        onKeyUp={handleSelect}
+                        onMouseUp={handleSelect}
                         placeholder={placeholder}
                         className="min-h-[300px] border-0 rounded-none focus-visible:ring-0 resize-y font-mono text-sm leading-relaxed p-4"
                         style={{ minHeight }}

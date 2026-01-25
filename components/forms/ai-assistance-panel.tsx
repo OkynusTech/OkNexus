@@ -27,59 +27,11 @@ export function AIAssistancePanel({
     const [intelligence, setIntelligence] = useState<any>(null);
     const [showExplanation, setShowExplanation] = useState(false);
 
-    const handleDraftDescription = async () => {
-        setLoading('description');
-        try {
-            const result = await AIAssistant.draftDescription(
-                finding as Finding,
-                engagementId,
-                applicationId,
-                clientId
-            );
-            setSuggestion(result);
-            setShowExplanation(false);
-        } catch (error) {
-            console.error('AI assistance error:', error);
-        } finally {
-            setLoading(null);
-        }
-    };
 
-    const handleDraftSteps = async () => {
-        setLoading('steps');
-        try {
-            const result = await AIAssistant.draftStepsToReproduce(
-                finding as Finding,
-                engagementId,
-                applicationId,
-                clientId
-            );
-            setSuggestion(result);
-            setShowExplanation(false);
-        } catch (error) {
-            console.error('AI assistance error:', error);
-        } finally {
-            setLoading(null);
-        }
-    };
 
-    const handleDraftRemediation = async () => {
-        setLoading('remediation');
-        try {
-            const result = await AIAssistant.draftRemediation(
-                finding as Finding,
-                engagementId,
-                applicationId,
-                clientId
-            );
-            setSuggestion(result);
-            setShowExplanation(false);
-        } catch (error) {
-            console.error('AI assistance error:', error);
-        } finally {
-            setLoading(null);
-        }
-    };
+
+
+
 
     const handleAnalyzeIntelligence = async () => {
         setLoading('intelligence');
@@ -151,48 +103,6 @@ export function AIAssistancePanel({
 
             {/* Action Buttons */}
             <div className="space-y-2 mb-4">
-                <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={handleDraftDescription}
-                    disabled={loading !== null || !finding.title}
-                >
-                    {loading === 'description' ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Draft Description
-                </Button>
-
-                <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={handleDraftSteps}
-                    disabled={loading !== null || !finding.title}
-                >
-                    {loading === 'steps' ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Draft Steps to Reproduce
-                </Button>
-
-                <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={handleDraftRemediation}
-                    disabled={loading !== null || !finding.title}
-                >
-                    {loading === 'remediation' ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Draft Remediation
-                </Button>
-
                 <Button
                     variant="default"
                     className="w-full justify-start bg-purple-600 hover:bg-purple-700 text-white"

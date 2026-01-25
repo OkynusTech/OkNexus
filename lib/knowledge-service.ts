@@ -113,6 +113,151 @@ export class ScopedRetrievalService {
     }
 
     /**
+     * Retrieve artifacts for an engagement with excerpts and enhanced context
+     * Returns artifacts from: engagement + application + client + excerpts for similarity
+     */
+    static retrieveForEngagementWithArtifacts(
+        engagementId: string,
+        applicationId: string,
+        clientId: string,
+        query?: string,
+        options: RetrievalOptions & {
+            artifactTypes?: string[];
+            minRelevanceScore?: number;
+        } = {}
+    ): RetrievalResult & {
+        artifactExcerpts: Array<{
+            artifactId: string;
+            artifactName: string;
+            artifactType: string;
+            excerpt: string;
+            relevanceScore: number;
+            scopeLevel: 'client' | 'application' | 'engagement';
+        }>;
+    } {
+        // Get engagement-scoped artifacts
+        const engagementArtifacts = getArtifactsByScope('engagement', engagementId);
+
+        // Get application-scoped artifacts
+        const appArtifacts = getArtifactsByScope('application', applicationId);
+
+        // Get client-scoped artifacts
+        const clientArtifacts = getArtifactsByScope('client', clientId);
+
+        // Combine all relevant scopes with scope level tracking
+        const scopedArtifacts = [
+            ...engagementArtifacts.map(a => ({ artifact: a, scopeLevel: 'engagement' as const })),
+            ...appArtifacts.map(a => ({ artifact: a, scopeLevel: 'application' as const })),
+            ...clientArtifacts.map(a => ({ artifact: a, scopeLevel: 'client' as const })),
+        ];
+
+        // Filter by artifact types if specified
+        let filtered = scopedArtifacts;
+        if (options.artifactTypes && options.artifactTypes.length > 0) {
+            filtered = filtered.filter(({ artifact }) =>
+                options.artifactTypes!.includes(artifact.type)
+            );
+        }
+
+        // Generate excerpts and relevance scores
+        const minScore = options.minRelevanceScore || 0.3;
+        const artifactExcerpts = filtered
+            .map(({ artifact, scopeLevel }) => {
+                const { excerpt, relevanceScore } = this.extractRelevantExcerpt(
+                    artifact,
+                    query || ''
+                );
+
+                return {
+                    artifactId: artifact.id,
+                    artifactName: artifact.name,
+                    artifactType: artifact.type,
+                    excerpt,
+                    relevanceScore,
+                    scopeLevel,
+                };
+            })
+            .filter(excerpt => excerpt.relevanceScore >= minScore)
+            .sort((a, b) => b.relevanceScore - a.relevanceScore)
+            .slice(0, options.maxResults || 10);
+
+        // Get base retrieval result
+        const baseResult = this.filterAndRank(
+            filtered.map(({ artifact }) => artifact),
+            query,
+            options
+        );
+
+        return {
+            ...baseResult,
+            artifactExcerpts,
+        };
+    }
+
+    /**
+     * Extract relevant excerpt from artifact content
+     * Finds 300-char snippet with highest query relevance
+     */
+    private static extractRelevantExcerpt(
+        artifact: Artifact,
+        query: string
+    ): { excerpt: string; relevanceScore: number } {
+        const content = artifact.content || '';
+        const name = artifact.name;
+        const description = artifact.description || '';
+
+        if (!query.trim()) {
+            // No query - return start of content
+            const excerpt = content.slice(0, 300) + (content.length > 300 ? '...' : '');
+            return { excerpt, relevanceScore: 0.5 };
+        }
+
+        const queryLower = query.toLowerCase();
+        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+
+        // Calculate relevance score
+        let score = 0;
+        if (name.toLowerCase().includes(queryLower)) score += 10;
+        if (description.toLowerCase().includes(queryLower)) score += 5;
+
+        // Find best excerpt window
+        const contentLower = content.toLowerCase();
+        let bestExcerpt = '';
+        let bestScore = 0;
+
+        // Split into sentences for better context
+        const sentences = content.match(/[^.!?]+[.!?]+/g) || [content];
+
+        for (let i = 0; i < sentences.length; i++) {
+            const window = sentences.slice(i, i + 3).join(' '); // 3 sentences
+            const windowLower = window.toLowerCase();
+
+            // Count query word matches in this window
+            let windowScore = queryWords.filter(word =>
+                windowLower.includes(word)
+            ).length;
+
+            if (windowScore > bestScore) {
+                bestScore = windowScore;
+                bestExcerpt = window.slice(0, 300) + (window.length > 300 ? '...' : '');
+            }
+        }
+
+        // If no good excerpt found, use beginning
+        if (!bestExcerpt) {
+            bestExcerpt = content.slice(0, 300) + (content.length > 300 ? '...' : '');
+        }
+
+        // Normalize score to 0-1 range
+        const matchCount = queryWords.filter(word =>
+            contentLower.includes(word)
+        ).length;
+        const relevanceScore = Math.min(1.0, (score / 20) + (matchCount / queryWords.length));
+
+        return { excerpt: bestExcerpt, relevanceScore };
+    }
+
+    /**
      * Filter and rank artifacts based on query and options
      * This is where we would integrate vector similarity if using embeddings
      */

@@ -1,0 +1,53 @@
+    const handleCheckSimilarity = async () => {
+        if (!title.trim()) {
+            alert('Please enter a title first');
+            return;
+        }
+
+        setIsCheckingSimilarity(true);
+        try {
+            const context = getHistoricalContext(applicationId);
+            
+            console.log('[DEBUG] Total findings:', context.pastFindings.length);
+            console.log('[DEBUG] Title:', title);
+
+            const titleWords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+            console.log('[DEBUG] Keywords:', titleWords);
+            
+            let candidates = context.pastFindings
+                .filter(({ finding: pastFinding, engagementId: histEngagementId }) => {
+                    if (engagementId && histEngagementId === engagementId) return false;
+                    const pastWords = pastFinding.title.toLowerCase().split(/\s+/);
+                    return titleWords.some(w => pastWords.some(pw => pw.includes(w) || w.includes(pw)));
+                })
+                .map(h => h.finding);
+
+            console.log('[DEBUG] After filter:', candidates.length);
+            
+            // Failsafe: use ALL if filter found nothing
+            if (candidates.length === 0 && context.pastFindings.length > 0) {
+                console.log('[DEBUG] FAILSAFE: Using all findings');
+                candidates = context.pastFindings
+                    .filter(({ engagementId: histEngagementId }) => !engagementId || histEngagementId !== engagementId)
+                    .map(h => h.finding);
+            }
+
+            if (candidates.length === 0) {
+                alert(`No historical findings for this app. Total: ${context.pastFindings.length}`);
+                return;
+            }
+
+            const results = await AIAssistant.analyzeSemanticSimilarity(
+                { title, description: description || '', severity, affectedAssets: affectedAssets.split('\n').filter(a => a.trim()) },
+                candidates
+            );
+
+            if (results.length === 0) alert(`AI checked ${candidates.length} findings - no matches`);
+            setSimilarityResults(results);
+        } catch (error) {
+            console.error('[ERROR]', error);
+            alert('Failed: ' + (error as Error).message);
+        } finally {
+            setIsCheckingSimilarity(false);
+        }
+    };
