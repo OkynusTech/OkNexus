@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose the Flask port
 EXPOSE 5555
 
-# Start the Flask server as a module (handles relative imports correctly)
-CMD ["python", "-m", "flask", "--app", "retest_engine.server", "run", "--host", "0.0.0.0", "--port", "5555"]
+# Start the Flask server, binding to Railway's dynamic $PORT (or 5555 locally)
+CMD ["sh", "-c", "python -m flask --app retest_engine.server run --host 0.0.0.0 --port ${PORT:-5555}"]
