@@ -75,7 +75,7 @@ interface EngineResult {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const RETEST_ENGINE_URL = 'http://localhost:5555';
+const RETEST_ENGINE_URL = '/api/retest';
 
 const STATUS_MAP: Record<EngineStatus, { label: string; color: string; icon: any; findingStatus: FindingStatus }> = {
     verified:  { label: 'FIXED',       color: 'bg-green-600 text-white', icon: CheckCircle2, findingStatus: 'Resolved' },
@@ -138,7 +138,7 @@ export function AutoRetestDialog({
         setError(null);
 
         try {
-            const res = await fetch(`${RETEST_ENGINE_URL}/retest`, {
+            const res = await fetch(RETEST_ENGINE_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -183,7 +183,7 @@ export function AutoRetestDialog({
             });
         } catch (err: any) {
             if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
-                setError('Cannot connect to retest engine. Is the server running on localhost:5555?');
+                setError('Cannot connect to retest engine. Is it running? (Check RETEST_ENGINE_URL)');
             } else {
                 setError(err.message || 'Unknown error');
             }
