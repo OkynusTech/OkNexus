@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:target": "py retest_engine/target_app.py",
+    "dev:engine": "py -m flask --app retest_engine.server run --port 5555",
+    "dev:all": "concurrently -n Next.js,TargetApp,RetestEngine -c cyan,yellow,green \"npm run dev\" \"npm run dev:target\" \"npm run dev:engine\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -46,6 +49,7 @@
     "@types/node": "^20",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "eslint-plugin-simple-import-sort": "^12.1.1",

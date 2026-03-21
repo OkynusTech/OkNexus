@@ -7,7 +7,7 @@ export function Logo({ className = "", iconClassName = "h-6 w-6" }: { className?
         <ShieldCheck className={`text-primary ${iconClassName}`} />
       </div>
       <span className="bg-gradient-to-tr from-purple-600 to-blue-600 bg-clip-text text-transparent">
-        OkAxis
+        OkNexus
       </span>
     </div>
   );

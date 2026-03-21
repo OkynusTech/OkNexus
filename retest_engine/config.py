@@ -27,5 +27,5 @@ MAX_AGENT_TURNS: int = int(os.environ.get("MAX_AGENT_TURNS", "15"))
 
 # ── XSS payload ──────────────────────────────────────────────────────────────
 # Minimal payload — sets a detectable window flag, avoids noisy alert()
-XSS_MARKER_PAYLOAD: str = "<img src=x onerror=\"window['__xss_okaxis']=1\">"
-XSS_MARKER_EXPR: str = "window['__xss_okaxis']"
+XSS_MARKER_PAYLOAD: str = "<img src=x onerror=\"window['__xss_oknexus']=1\">"
+XSS_MARKER_EXPR: str = "window['__xss_oknexus']"

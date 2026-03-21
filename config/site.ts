@@ -1,10 +1,10 @@
 export const siteConfig = {
-  name: "OkAxis",
+  name: "OkNexus",
   url: "https://www.okynus.com",
   getStartedUrl: "https://www.okynus.com",
   ogImage: "https://www.okynus.com/og.jpg",
   description:
-    "OkAxis by OkynusTech - Professional Security Reporting Platform",
+    "OkNexus by OkynusTech - Professional Security Reporting Platform",
   links: {
     twitter: "https://twitter.com/okynustech",
     github: "https://github.com/okynustech",

@@ -26,7 +26,7 @@ export const authOptions: NextAuthOptions = {
                     return {
                         id: "admin",
                         name: "System Administrator",
-                        email: "admin@okaxis.internal",
+                        email: "admin@oknexus.internal",
                         image: null,
                         role: "admin", // Internal role
                     };

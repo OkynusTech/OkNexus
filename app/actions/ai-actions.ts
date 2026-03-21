@@ -209,7 +209,7 @@ export async function chatTemplateWizardAction(
         };
     }
 
-    const SYSTEM_PROMPT = `You are an expert Penetration Testing Report Template Architect for a platform called OkAxis. 
+    const SYSTEM_PROMPT = `You are an expert Penetration Testing Report Template Architect for a platform called OkNexus. 
 Your job is to help security engineers design the perfect report template via a friendly, professional conversation.
 
 CONVERSATION RULES:

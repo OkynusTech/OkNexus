@@ -93,7 +93,7 @@ export function MainNav() {
             <div className="container flex h-16 items-center px-4">
                 <Link href="/" className="mr-8 flex items-center gap-2 font-bold text-xl">
                     <span className="text-foreground">
-                        OkAxis
+                        OkNexus
                     </span>
                 </Link>
 

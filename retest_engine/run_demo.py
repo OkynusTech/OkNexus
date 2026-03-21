@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-End-to-End Demo: OkAxis Retest Engine
+End-to-End Demo: OkNexus Retest Engine
 ======================================
 Starts both servers, runs IDOR + XSS retests, prints a full report.
 
 Usage:
-    cd OkAxis
+    cd OkNexus
     python retest_engine/run_demo.py
 
 Requirements:
@@ -46,8 +46,8 @@ except ImportError:
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-REPO_ROOT    = Path(__file__).parent.parent          # OkAxis/
-ENGINE_DIR   = Path(__file__).parent                 # OkAxis/retest_engine/
+REPO_ROOT    = Path(__file__).parent.parent          # OkNexus/
+ENGINE_DIR   = Path(__file__).parent                 # OkNexus/retest_engine/
 TARGET_URL   = "http://localhost:8080"
 ENGINE_URL   = "http://localhost:5555"
 STARTUP_WAIT = 30   # seconds to wait for servers
@@ -237,7 +237,7 @@ def print_result(label: str, vuln_type: str, result: dict) -> None:
 
 
 def print_final_summary(results: list[dict]) -> None:
-    banner("FINAL REPORT — OkAxis Retest Engine Demo")
+    banner("FINAL REPORT — OkNexus Retest Engine Demo")
     print(f"  Generated : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"  Target    : {TARGET_URL}")
     print(f"  Engine    : {ENGINE_URL}")
@@ -268,7 +268,7 @@ def print_final_summary(results: list[dict]) -> None:
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    banner("OkAxis Retest Engine — End-to-End Demo")
+    banner("OkNexus Retest Engine — End-to-End Demo")
     print("  This demo spins up a vulnerable test app and runs automated")
     print("  retests to verify whether IDOR and Stored XSS are still present.")
     print()

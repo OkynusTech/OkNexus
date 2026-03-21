@@ -24,7 +24,7 @@ export default function LoginPage() {
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                         <ShieldCheck className="h-8 w-8 text-primary" />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">OkAxis</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">OkNexus</h1>
                     <p className="mt-2 text-sm font-medium text-muted-foreground">by OkynusTech</p>
                 </div>
 

@@ -178,9 +178,9 @@ If the alert does NOT trigger → XSS is fixed.
 **How It Works:**
 1. Planner generates actions from your steps.
 2. Executor logs in and navigates to the injection point.
-3. Verifier injects a non-disruptive marker: `<img src=x onerror="window['__xss_okaxis']=1">`
+3. Verifier injects a non-disruptive marker: `<img src=x onerror="window['__xss_oknexus']=1">`
 4. Executor submits the form and navigates to the reflection URL.
-5. Verifier checks if `window['__xss_okaxis']` is truthy.
+5. Verifier checks if `window['__xss_oknexus']` is truthy.
 6. If true → `status: "not_fixed"`, else → `status: "verified"`.
 
 ---

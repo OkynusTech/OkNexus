@@ -78,7 +78,7 @@ export default function ApplicationsPage() {
                             <h3 className="font-semibold text-blue-600">Engagement Memory System</h3>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Applications are now first-class entities. Each application can have multiple engagements,
-                                allowing OkAxis to track history, recurring vulnerabilities, and team continuity across assessments.
+                                allowing OkNexus to track history, recurring vulnerabilities, and team continuity across assessments.
                             </p>
                         </div>
                     </div>

@@ -129,7 +129,7 @@ export default function ClientLoginPage() {
                 </Card>
 
                 <div className="text-center text-xs text-slate-500">
-                    <p>Protected by OkAxis Security Intelligence.</p>
+                    <p>Protected by OkNexus Security Intelligence.</p>
                 </div>
             </div>
         </div>

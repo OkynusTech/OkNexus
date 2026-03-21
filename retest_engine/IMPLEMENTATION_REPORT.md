@@ -258,14 +258,14 @@ This keeps the browser session alive across multiple action batches (login once,
    - Submit form
    - Navigate to reflection URL
 3. Wait 2s for DOM to settle
-4. Evaluate window['__xss_okaxis'] in page context
+4. Evaluate window['__xss_oknexus'] in page context
 5. If truthy → payload executed (success=True)
 6. Else → payload did NOT execute (success=False)
 ```
 
 ### Payload Design
 
-**Marker**: `<img src=x onerror="window['__xss_okaxis']=1">`
+**Marker**: `<img src=x onerror="window['__xss_oknexus']=1">`
 
 **Why this payload?**
 - ✅ Non-disruptive (no alert, no page redirect)
@@ -290,10 +290,10 @@ This keeps the browser session alive across multiple action batches (login once,
 ```
 1. Login as bob
 2. Navigate to /comments/new
-3. Fill textarea with <img src=x onerror="window['__xss_okaxis']=1">
+3. Fill textarea with <img src=x onerror="window['__xss_oknexus']=1">
 4. Click submit
 5. Navigate to /comments (reflection page)
-6. Wait 2s, then page.evaluate("window['__xss_okaxis']")
+6. Wait 2s, then page.evaluate("window['__xss_oknexus']")
 7. If returns 1 → success=True → status="not_fixed"
 8. If undefined → success=False → status="verified"
 ```

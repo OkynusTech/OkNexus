@@ -1,6 +1,6 @@
-# OkAxis
+# OkNexus
 
-OkAxis is a comprehensive **Security Engagement Management Platform** designed to streamline the process of managing security assessments, pen-testing engagements, and vulnerability reporting. Built with modern web technologies, it offers a powerful dashboard for security professionals to track findings, manage clients, and generate insightful reports.
+OkNexus is a comprehensive **Security Engagement Management Platform** designed to streamline the process of managing security assessments, pen-testing engagements, and vulnerability reporting. Built with modern web technologies, it offers a powerful dashboard for security professionals to track findings, manage clients, and generate insightful reports.
 
 ## 🚀 Features
 
@@ -37,8 +37,8 @@ OkAxis is a comprehensive **Security Engagement Management Platform** designed t
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/okaxis.git
-    cd okaxis
+    git clone https://github.com/yourusername/oknexus.git
+    cd oknexus
     ```
 
 2.  Install dependencies:

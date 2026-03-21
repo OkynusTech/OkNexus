@@ -11,7 +11,7 @@ Strategy
 6. Evaluate whether the marker executed in the page's JS context.
 7. Capture a screenshot as proof.
 
-The marker payload sets window['__xss_okaxis'] = 1 via an onerror handler,
+The marker payload sets window['__xss_oknexus'] = 1 via an onerror handler,
 avoiding noisy alert() calls while remaining detectable via page.evaluate().
 
 Returns a VerificationResult dict:
@@ -162,7 +162,7 @@ def _check_logs_for_xss(logs: list[dict]) -> bool:
     """
     for entry in logs:
         msg = entry.get("msg", "").lower()
-        if "__xss_okaxis" in msg or "xss" in msg:
+        if "__xss_oknexus" in msg or "xss" in msg:
             return True
     return False
 

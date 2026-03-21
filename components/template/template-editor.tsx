@@ -658,7 +658,7 @@ function BrandingEditor({
                         <div className="space-y-3 pt-2 border-t">
                             <div className="space-y-2">
                                 <Label htmlFor="footerText">Report Footer Text</Label>
-                                <Input id="footerText" value={config.footerText || ''} onChange={e => handle('footerText', e.target.value)} placeholder="e.g. Confidential — OkAxis Security" />
+                                <Input id="footerText" value={config.footerText || ''} onChange={e => handle('footerText', e.target.value)} placeholder="e.g. Confidential — OkNexus Security" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="confidentiality">Confidentiality Notice</Label>

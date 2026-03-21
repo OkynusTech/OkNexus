@@ -1,6 +1,6 @@
 # Deployment Guide (Vercel)
 
-This guide walks you through deploying the **OkAxis** application to Vercel, the creators of Next.js and the recommended hosting platform.
+This guide walks you through deploying the **OkNexus** application to Vercel, the creators of Next.js and the recommended hosting platform.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This guide walks you through deploying the **OkAxis** application to Vercel, the
 1.  Log in to your **Vercel Dashboard**.
 2.  Click on **"Add New..."** and select **"Project"**.
 3.  In the "Import Git Repository" section, you should see your GitHub repositories listed.
-4.  Find `OkAxis` (or your repository name) and click **"Import"**.
+4.  Find `OkNexus` (or your repository name) and click **"Import"**.
 
 ## Step 2: Configure Project
 
@@ -39,7 +39,7 @@ You must add the environment variables from your `.env.local` to Vercel for the 
 | `GROQ_API_KEY` | Your AI API Key |
 | `NEXT_PUBLIC_AI_ENABLED` | `true` |
 
-> **Note**: For `NEXTAUTH_URL`, after your first deployment generates a URL (like `okaxis.vercel.app`), go back to Vercel Settings > Environment Variables, add/update `NEXTAUTH_URL` to that real URL, and Redeploy. You also need to add that domain to your **Google Cloud Console** "Authorized JavaScript origins" and "Authorized redirect URIs".
+> **Note**: For `NEXTAUTH_URL`, after your first deployment generates a URL (like `oknexus.vercel.app`), go back to Vercel Settings > Environment Variables, add/update `NEXTAUTH_URL` to that real URL, and Redeploy. You also need to add that domain to your **Google Cloud Console** "Authorized JavaScript origins" and "Authorized redirect URIs".
 
 ## Step 4: Deploy
 

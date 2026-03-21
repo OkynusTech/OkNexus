@@ -1,0 +1,19 @@
+# render.yaml - Render deployment config
+# This deploys the Python Retest Engine as a separate web service.
+
+services:
+  - name: oknexus-retest-engine
+    type: web
+    runtime: docker
+    dockerfilePath: ./Dockerfile.retest
+    plan: starter          # or 'free' if available in your region
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false        # Set this manually in the Render dashboard
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: HEADLESS
+        value: "true"
+      - key: BROWSER_TIMEOUT_MS
+        value: "30000"
+    healthCheckPath: /health

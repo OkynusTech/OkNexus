@@ -1,0 +1,17 @@
+# Use the official Playwright Python image — has Chromium + deps pre-installed
+FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+
+WORKDIR /app
+
+# Copy only the retest engine source
+COPY retest_engine/ ./retest_engine/
+COPY retest_engine/requirements.txt ./requirements.txt
+
+# Install Python dependencies (playwright binaries already in base image)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose the Flask port
+EXPOSE 5555
+
+# Start the Flask server as a module (handles relative imports correctly)
+CMD ["python", "-m", "flask", "--app", "retest_engine.server", "run", "--host", "0.0.0.0", "--port", "5555"]

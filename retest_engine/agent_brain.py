@@ -64,7 +64,7 @@ You operate in an observe-reason-act loop:
 2. Find the form/input where content can be submitted.
 3. Fill the XSS payload into the vulnerable field and submit.
 4. Navigate to the page where stored content is rendered (reflection URL).
-5. Use evaluate_js to check: window['__xss_okaxis']
+5. Use evaluate_js to check: window['__xss_oknexus']
    - If result is 1/truthy = XSS NOT FIXED (payload executed)
    - If result is null/undefined/falsy = XSS VERIFIED as FIXED
 6. Issue verdict with the evidence.
@@ -129,7 +129,7 @@ class AgentBrain:
         if self.vuln_type == "STORED_XSS" and self.xss_payload:
             parts.append("")
             parts.append(f"XSS Payload to inject: {self.xss_payload}")
-            parts.append("After injection, check: window['__xss_okaxis'] == 1")
+            parts.append("After injection, check: window['__xss_oknexus'] == 1")
 
         parts.append("")
         parts.append("You are now on a blank page (about:blank). Take your first action.")
