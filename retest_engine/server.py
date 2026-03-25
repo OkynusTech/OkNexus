@@ -23,12 +23,18 @@ Example:
 
 import json
 import logging
+import threading
 import traceback
 from datetime import datetime
 
-from flask import Flask, request, jsonify
+import dotenv
+dotenv.load_dotenv(dotenv.find_dotenv(".env.local"))
+
+from flask import Flask, request, jsonify, Response
 
 from .main import run_retest
+from .event_stream import EventBus
+from .orchestrator import run as _async_run
 from .logger import get_logger
 
 # ── Flask Setup ───────────────────────────────────────────────────────────────
@@ -52,6 +58,7 @@ def add_cors_headers(response):
 
 
 @app.route('/retest', methods=['OPTIONS'])
+@app.route('/retest/stream', methods=['OPTIONS'])
 @app.route('/health', methods=['OPTIONS'])
 @app.route('/info', methods=['OPTIONS'])
 def cors_preflight():
@@ -141,6 +148,100 @@ def submit_retest():
         }), 500
 
 
+# ── SSE streaming endpoint ────────────────────────────────────────────────────
+
+@app.route('/retest/stream', methods=['POST'])
+def submit_retest_stream():
+    """
+    Same as /retest but returns Server-Sent Events for real-time progress.
+
+    Events emitted:
+      - turn_start:  {"turn": N, "max_turns": M}
+      - turn_action: {"turn": N, "action": "...", "reasoning": "..."}
+      - turn_result: {"turn": N, "result": "..."}
+      - verdict:     {"status": "...", "confidence": N, "summary": "..."}
+      - complete:    {full result object}
+      - error:       {"message": "..."}
+    """
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Content-Type must be application/json"}), 400
+
+        payload = request.get_json()
+        log.info(f"SSE retest request received: {payload.get('retest_id')}")
+
+        required = ["retest_id", "vulnerability_type", "target_url", "credentials"]
+        missing = [f for f in required if not payload.get(f)]
+        if missing:
+            return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+        if not isinstance(payload.get("credentials"), dict):
+            return jsonify({"error": "credentials must be a dict"}), 400
+
+        event_bus = EventBus()
+        subscriber = event_bus.subscribe()
+
+        import asyncio
+
+        # Run orchestrator in a background thread
+        result_holder = {"result": None, "error": None}
+
+        def _run_in_thread():
+            try:
+                result_holder["result"] = asyncio.run(
+                    _async_run(payload, event_bus=event_bus)
+                )
+            except Exception as exc:
+                result_holder["error"] = str(exc)
+                event_bus.emit("error", {"message": str(exc)})
+
+        thread = threading.Thread(target=_run_in_thread, daemon=True)
+        thread.start()
+
+        def generate_events():
+            import queue
+            try:
+                while thread.is_alive() or not subscriber.empty():
+                    try:
+                        event = subscriber.get(timeout=1.0)
+                    except queue.Empty:
+                        continue
+                    
+                    try:
+                        yield event_bus.format_sse(event)
+                    except Exception as format_exc:
+                        log.error(f"Failed to format SSE event: {format_exc}")
+                        yield event_bus.format_sse({
+                            "type": "error",
+                            "data": {"message": f"SSE Serialization Error: {format_exc}"}
+                        })
+                        
+                    if event.get("type") == "complete" or event.get("type") == "error":
+                        break
+
+                # If thread died with error and no complete/error event was sent
+                if result_holder["error"] and not result_holder["result"]:
+                    yield event_bus.format_sse({
+                        "type": "error",
+                        "data": {"message": result_holder["error"]},
+                    })
+            finally:
+                event_bus.unsubscribe(subscriber)
+
+        return Response(
+            generate_events(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+            },
+        )
+
+    except Exception as exc:
+        log.error(f"SSE endpoint error:\n{traceback.format_exc()}")
+        return jsonify({"error": f"Internal server error: {str(exc)}"}), 500
+
+
 # ── Info endpoint ─────────────────────────────────────────────────────────────
 
 @app.route('/info', methods=['GET'])
@@ -154,7 +255,10 @@ def info():
             "GET /health": "Health check",
             "GET /info": "This endpoint",
         },
-        "supported_vulnerabilities": ["IDOR", "STORED_XSS"],
+        "supported_vulnerabilities": [
+            "IDOR", "STORED_XSS", "AUTH_BYPASS", "CSRF",
+            "OPEN_REDIRECT", "REFLECTED_XSS", "SQLI",
+        ],
     }), 200
 
 
