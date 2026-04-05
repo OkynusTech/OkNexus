@@ -1,91 +1,101 @@
 # OkNexus
 
-OkNexus is a comprehensive **Security Engagement Management Platform** designed to streamline the process of managing security assessments, pen-testing engagements, and vulnerability reporting. Built with modern web technologies, it offers a powerful dashboard for security professionals to track findings, manage clients, and generate insightful reports.
+A comprehensive **Security Engagement Management Platform** for managing penetration testing engagements, tracking vulnerabilities, and generating client reports — powered by an autonomous AI agentic retest engine.
 
-## 🚀 Features
+---
 
--   **Engagement Management**: Create and track security engagements with detailed metadata (dates, audit type, status).
--   **Vulnerability Tracking**: comprehensive system for logging findings with severity ratings (Critical, High, Medium, Low, Info).
--   **Interactive Dashboard**: Real-time overview of active engagements, identifying key metrics and vulnerability statistics.
--   **Client & Service Provider Management**: Maintain profiles for clients and service providers.
--   **Analytics & Insights**: specialized executive insights and visual analytics using Recharts.
--   **AI-Powered Assistance**: Integrated AI capabilities for enhanced analysis and reporting support.
--   **Reporting & Templates**: robust reporting engine with custom templates and export capabilities (JSON/PDF).
--   **CWE Integration**: Built-in support for Common Weakness Enumeration (CWE) database.
--   **Dark Mode Support**: fully thematic UI with light/dark mode toggles.
+## 🚀 Key Features
+
+- **Engagement & Finding Management** — Track assessments, findings (Critical → Info), and retest statuses
+- **AI-Powered Retest Engine** — Autonomous agent that uses Playwright + Groq LLM to verify if vulnerabilities are patched
+- **AI Writing Assistance** — Text refinement, executive summary generation, and finding explanations via Groq/Gemini
+- **Template Wizard** — Multi-turn AI chat to design custom pentest report templates
+- **RAG-Powered Suggestions** — Local semantic search (Transformers.js + BGE embeddings) to ground AI suggestions in your project data
+- **Client & Engineer Management** — Full profiles, engagement history, and analytics
+- **Report Generation** — PDF/JSON export with custom branding, charts, and findings presentation
+
+---
 
 ## 🛠️ Tech Stack
 
--   **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
--   **Language**: [TypeScript](https://www.typescriptlang.org/)
--   **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
--   **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (Radix UI)
--   **Authentication**: [NextAuth.js](https://next-auth.js.org/)
--   **Icons**: [Lucide React](https://lucide.dev/)
--   **Charts**: [Recharts](https://recharts.org/)
--   **AI/ML**: @xenova/transformers, groq-sdk
--   **Date Handling**: date-fns
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| Auth | NextAuth.js (Google OAuth) |
+| AI (Frontend) | Groq SDK + Google Gemini SDK |
+| AI (Engine) | Groq `llama-3.3-70b-versatile` |
+| Local Embeddings | `@xenova/transformers` (BAAI/bge-small-en-v1.5) |
+| Browser Automation | Playwright (Python) |
+| Engine Server | Python + Flask |
+| Charts | Recharts |
 
-## 📦 Getting Started
+---
+
+## ⚡ Quick Start
 
 ### Prerequisites
+- Node.js 18+, Python 3.11+
 
--   Node.js (v18 or higher)
--   npm or yarn
+### Install
+```bash
+npm install
+pip install -r retest_engine/requirements.txt
+python -m playwright install chromium
+```
 
-### Installation
+### Configure `.env.local`
+```env
+# Auth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+NEXTAUTH_SECRET=...
+NEXTAUTH_URL=http://localhost:3000
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/oknexus.git
-    cd oknexus
-    ```
+# AI
+GROQ_API_KEY=...
+GEMINI_API_KEY=...          # optional but recommended
+NEXT_PUBLIC_AI_ENABLED=true
+```
 
-2.  Install dependencies:
-    ```bash
-    npm install
-    # or
-    yarn install
-    ```
+### Run
+```bash
+npm run dev:all   # starts Next.js + Python engine together
+```
 
-3.  Set up environment variables:
-    Create a `.env.local` file in the root directory and configure the following variables:
-    ```env
-    # Authentication (NextAuth & Google Provider)
-    GOOGLE_CLIENT_ID=your_google_client_id
-    GOOGLE_CLIENT_SECRET=your_google_client_secret
-    NEXTAUTH_SECRET=your_nextauth_secret
-    NEXTAUTH_URL=http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000).
 
-    # AI Integration (Groq)
-    GROQ_API_KEY=your_groq_api_key
-    NEXT_PUBLIC_AI_ENABLED=true
-    ```
+---
 
-4.  Run the development server:
-    ```bash
-    npm run dev
-    ```
+## 📂 Project Structure
 
-5.  Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```
+/app              Next.js App Router pages and API routes
+/components       Reusable UI components
+/lib              Utility functions, types, AI services, storage
+/retest_engine    Autonomous Python vulnerability verification agent
+/docs             All project documentation (see below)
+/public           Static assets
+```
 
-## 📜 Scripts
+---
 
--   `npm run dev`: Starts the development server with Turbopack.
--   `npm run build`: Builds the application for production.
--   `npm start`: Starts the production server.
--   `npm run lint`: Runs ESLint to check for code quality issues.
+## 📖 Documentation
 
-## 📁 Project Structure
+All documentation lives in the [`/docs`](./docs) folder:
 
--   `/app`: Next.js App Router pages and layouts.
--   `/components`: Reusable UI components (shadcn/ui and custom).
--   `/lib`: Utility functions, types, storage logic, and AI services.
--   `/public`: Static assets.
+| Document | Description |
+|---|---|
+| [retest-engine.md](./docs/retest-engine.md) | Retest engine setup, API reference, action types, SSE events, troubleshooting |
+| [deployment.md](./docs/deployment.md) | Deploying to Vercel (Next.js) and Railway (Python engine Docker) |
+| [ai-layer.md](./docs/ai-layer.md) | AI provider setup (Groq + Gemini), Transformers.js local embeddings, feature reference |
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please open a Pull Request.
 
 ## 📄 License
 
