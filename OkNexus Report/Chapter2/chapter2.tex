@@ -1,0 +1,77 @@
+\chapter{Background}
+
+\section{Introduction}
+
+This chapter establishes the foundational technical concepts underlying the design and implementation of OkNexus. It covers the architecture of web applications and their inherent attack surface, the principal vulnerability classes targeted by the platform, standardised frameworks for vulnerability scoring and penetration testing, the theoretical basis of large language models, the ReAct agentic framework, Retrieval-Augmented Generation, and headless browser automation. Readers familiar with these topics may proceed directly to Chapter~3.
+
+\section{Web Application Security}
+
+\subsection{Web Application Architecture}
+
+A web application is a software system in which client-side logic executes within a web browser and communicates with server-side components over the HTTP or HTTPS protocol. The client typically renders a Document Object Model (DOM) constructed from HTML, CSS, and JavaScript delivered by the server. Server-side components --- implemented using frameworks such as Node.js, Django, Rails, or Spring --- process business logic, interact with databases, and authenticate users. This architecture introduces multiple trust boundaries at which an adversary may attempt to subvert the intended behaviour of the application.
+
+The OWASP Foundation has systematically documented the most prevalent and impactful web application security risks since 2003. The 2021 OWASP Top Ten \cite{owasp2021} identifies broken access control (ranked first for the first time), cryptographic failures, injection attacks, insecure design, security misconfiguration, vulnerable and outdated components, identification and authentication failures, software and data integrity failures, security logging and monitoring failures, and Server-Side Request Forgery (SSRF) as the dominant risk categories. The vulnerability classes supported by OkNexus map directly to several of these categories.
+
+\subsection{Web Application Vulnerability Classes}
+
+The following vulnerability classes are relevant to this project:
+
+\textbf{Insecure Direct Object Reference (IDOR)} occurs when an application exposes a reference to an internal implementation object (such as a database record identifier) and fails to verify that the authenticated user is authorised to access the referenced object. An attacker who discovers the pattern of object identifiers may access, modify, or delete data belonging to other users by modifying the identifier in their request. IDOR is a manifestation of the broader category of broken access control \cite{owasp2021}.
+
+\textbf{Cross-Site Scripting (XSS)} encompasses a family of injection attacks in which malicious client-side script is injected into a web page and subsequently executed in the browser of another user. In \textit{stored} XSS, the payload is persisted in the application's database and executes whenever the affected page is rendered. In \textit{reflected} XSS, the payload is embedded in a URL parameter, reflected immediately by the server in the HTTP response, and executes in the victim's browser when they navigate to the crafted URL.
+
+\textbf{Cross-Site Request Forgery (CSRF)} exploits the browser's automatic inclusion of session cookies in cross-origin requests. An attacker who can cause a victim's browser to issue a state-changing request to a trusted application (e.g., by embedding a form in a malicious page) can perform actions on behalf of the victim. The standard defence is a synchronised token pattern, wherein the server issues a nonce that must be included in state-changing requests and is not automatically forwarded by the browser.
+
+\textbf{Authentication Bypass} refers to conditions in which an application fails to enforce authentication on endpoints that should require a valid session. An attacker who directly navigates to a protected resource, manipulates request parameters, or exploits flaws in the session management logic may gain unauthorised access to privileged functionality.
+
+\textbf{Open Redirect} occurs when an application redirects users to a destination URL specified in a request parameter (e.g., \texttt{?next=/dashboard}) without validating that the destination is within the application's own domain. An attacker can manipulate this parameter to redirect victims to a phishing site, abusing the trusted domain for social engineering.
+
+\textbf{SQL Injection (SQLi)} is an injection attack in which unsanitised user input is interpolated into a SQL query, allowing an attacker to modify the query's structure and extract, modify, or delete database records, or in some configurations, execute operating system commands.
+
+\subsection{The Common Vulnerability Scoring System}
+
+The \acrshort{CVSS}, maintained by FIRST at version 4.0 \cite{cvss_nist}, provides a standardised numerical framework for assessing vulnerability severity on a scale from 0.0 to 10.0. The base metric group captures attack vector (network, adjacent, local, or physical), attack complexity (low or high), privileges required (none, low, or high), user interaction requirement, scope, and impact on the confidentiality, integrity, and availability (CIA) triad. A base score of 9.0 or above denotes Critical severity; 7.0--8.9 is High; 4.0--6.9 is Medium; 0.1--3.9 is Low. CVSS scores form the backbone of the severity classification system used in the OkNexus findings management module.
+
+\subsection{Penetration Testing Lifecycle}
+
+The Penetration Testing Execution Standard (PTES) \cite{ptes} defines seven phases of a penetration test: pre-engagement interactions (scoping and rules of engagement), intelligence gathering (reconnaissance), threat modelling, vulnerability identification, exploitation, post-exploitation, and reporting. The reporting phase produces the deliverable that clients receive: a structured document containing an executive summary, a methodology overview, and a per-finding section for each identified vulnerability. Following client-side remediation, a retesting phase confirms whether fixes are effective. OkNexus is designed to support and accelerate the reporting and retesting phases specifically.
+
+\section{Large Language Models}
+
+\subsection{Transformer Architecture}
+
+Large language models are neural networks based on the transformer architecture introduced by Vaswani et al.\ in 2017. The transformer uses a self-attention mechanism that allows each token in a sequence to attend to every other token, enabling the modelling of long-range dependencies in text. Modern LLMs such as GPT-4, Claude, and the Llama family are decoder-only transformers pre-trained on vast corpora of text using a next-token prediction objective, then fine-tuned on instruction-following and human-preference data using reinforcement learning from human feedback (RLHF) or similar techniques.
+
+The emergent capability of these models to perform structured reasoning, follow complex instructions, generate syntactically and semantically valid code, and produce domain-specific content has made them applicable to a wide range of knowledge-intensive tasks. In OkNexus, the \texttt{llama-3.3-70b-versatile} model served via the Groq LPU inference platform acts as the reasoning engine for both the AI-assisted report composition features and the autonomous retest agent.
+
+\subsection{Instruction Following and Structured Output}
+
+A critical property of modern LLMs for engineering applications is their ability to follow detailed instructions and produce structured output in formats such as JSON. By providing a precise JSON schema in the system prompt and instructing the model to respond only with conforming objects, a calling application can reliably parse and act upon the model's output. OkNexus's retest engine exploits this property to implement a closed, typed action vocabulary: the model must express every decision as a JSON object whose \texttt{action} field is one of a fixed set of valid types, which the executor then dispatches deterministically.
+
+\section{Agentic AI and the Observe-Reason-Act Loop}
+
+\subsection{The ReAct Framework}
+
+Yao et al.\ \cite{react2023} introduced the \textit{ReAct} (Reasoning + Acting) framework as a paradigm for combining chain-of-thought reasoning with the ability to take actions against real-world tools. In the ReAct loop, a language model interleaves natural language reasoning traces with concrete action calls to external tools (web search, code execution, API calls), observing the results of each action to inform subsequent reasoning. This produces a transparent, auditable trace of the agent's decision-making process rather than a single opaque output.
+
+The ReAct paradigm differs fundamentally from both pure reasoning approaches (which do not interact with the environment) and pure reactive approaches (which act without explicit deliberation). Empirical evaluations show that ReAct-style agents substantially outperform both alternatives on tasks requiring multi-step information retrieval and sequential decision-making.
+
+\subsection{Tool-Using Agents}
+
+The practical instantiation of the ReAct framework requires a mechanism for the LLM to invoke tools. In modern LLM APIs (OpenAI function calling, Anthropic tool use, Groq tool use), this is achieved by providing the model with a schema of available functions and their parameters; the model outputs a structured function call which the host application executes, returning the result as a user-turn message. OkNexus implements a similar mechanism at the application level: the engine parses the model's JSON action output, dispatches it to the appropriate Playwright executor method, and appends the result to the conversation history.
+
+\section{Retrieval-Augmented Generation}
+
+Retrieval-Augmented Generation (RAG) addresses the limitation that a parametric LLM's knowledge is fixed at training time and cannot reflect proprietary, engagement-specific, or recently generated content. In a RAG system, a query is encoded as a dense vector using a sentence embedding model; the most semantically similar documents in a pre-indexed corpus are retrieved by nearest-neighbour search; and the retrieved documents are concatenated into the model's context window alongside the user's prompt. The model then conditions its output on both its parametric knowledge and the retrieved context.
+
+For security reporting, RAG enables an AI assistant to ground suggestions in the tester's own notes, imported references, and prior finding templates from the current engagement. This dramatically reduces hallucination compared to prompting the model with only generic vulnerability category information. The embedding model used in OkNexus, \texttt{BAAI/bge-small-en-v1.5} \cite{bge_small}, is a compact 33~MB ONNX model that achieves strong retrieval quality at very low inference latency, making it suitable for server-side embedding without external API calls.
+
+\section{Headless Browser Automation}
+
+A headless browser executes a full web browser engine --- including JavaScript evaluation, cookie management, and DOM rendering --- without displaying a visible graphical interface. Headless browsers are used extensively in automated testing, web scraping, and security tooling because they can interact with modern dynamic web applications exactly as a human user would, including navigating to pages, filling forms, clicking buttons, and observing the resulting DOM state.
+
+Microsoft's Playwright \cite{playwright_microsoft} is a cross-browser automation library that supports Chromium, Firefox, and WebKit through a unified Python (and JavaScript) API. It provides capabilities including fine-grained network request interception, cookie injection, JavaScript evaluation, and screenshot capture that are essential for the vulnerability verification scenarios implemented in OkNexus. Playwright's synchronous Python API is used in the retest engine to simplify the control flow of the agentic loop.
+
+\section{Summary}
+
+This chapter has established the conceptual and technical foundations across five domains: web application security and vulnerability classification, the CVSS severity framework and PTES lifecycle, LLM capabilities and structured output, the ReAct agentic framework and tool use, RAG for context-grounded generation, and headless browser automation with Playwright. These foundations together provide the substrate upon which the OkNexus architecture is built. The following chapter surveys the prior work and research literature in each of these areas.

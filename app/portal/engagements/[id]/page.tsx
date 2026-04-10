@@ -1,51 +1,49 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getEngagement } from '@/lib/storage';
-import { Engagement, Finding } from '@/lib/types';
+import { getEngagement, loadState } from '@/lib/storage';
+import { Engagement } from '@/lib/types';
 import { formatDate } from '@/lib/report-utils';
-import { ArrowLeft, Calendar, FileText, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Shield, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
 export default function ClientEngagementDetailPage() {
-    const { data: session } = useSession();
     const params = useParams();
     const router = useRouter();
     const [engagement, setEngagement] = useState<Engagement | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (session && params.id) {
-            const clientId = (session.user as any).clientId;
-            if (!clientId) return;
+        if (!params.id) return;
 
-            const engId = typeof params.id === 'string' ? params.id : params.id?.[0];
-            if (!engId) return;
+        const userId = localStorage.getItem('ok_portal_user_id');
+        if (!userId) { router.push('/client-login'); return; }
 
-            const foundEng = getEngagement(engId);
+        const state = loadState();
+        const portalUser = state.clientUsers.find(u => u.id === userId);
+        if (!portalUser) { router.push('/client-login'); return; }
 
-            if (foundEng) {
-                // Security Check: Ensure this engagement belongs to the logged-in client
-                if (foundEng.clientId !== clientId) {
-                    router.push('/portal/engagements'); // Unauthorized
-                    return;
-                }
-                setEngagement(foundEng);
+        const clientId = portalUser.clientId;
+        const engId = typeof params.id === 'string' ? params.id : params.id?.[0];
+        if (!engId) return;
+
+        const foundEng = getEngagement(engId);
+        if (foundEng) {
+            if (foundEng.clientId !== clientId) {
+                router.push('/portal/engagements');
+                return;
             }
-            setLoading(false);
+            setEngagement(foundEng);
         }
-    }, [session, params.id, router]);
+        setLoading(false);
+    }, [params.id, router]);
 
     if (loading) return <div>Loading...</div>;
     if (!engagement) return <div className="p-8 text-center">Engagement not found.</div>;
-
-    const criticalCount = engagement.findings.filter(f => f.severity === 'Critical' && f.status !== 'Fixed').length;
-    const highCount = engagement.findings.filter(f => f.severity === 'High' && f.status !== 'Fixed').length;
 
     return (
         <div className="space-y-6">
@@ -75,12 +73,10 @@ export default function ClientEngagementDetailPage() {
                 </div>
 
                 <div className="flex gap-2">
-                    {/* Download Report Button Placeholder - Phase 2 */}
                     <Button variant="outline" disabled>Download Report (Coming Soon)</Button>
                 </div>
             </div>
 
-            {/* Findings List */}
             <div className="space-y-4">
                 <h2 className="text-xl font-semibold dark:text-white flex items-center gap-2">
                     Findings

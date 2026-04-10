@@ -1,0 +1,55 @@
+\chapter{Introduction}
+
+\section{Overview}
+
+The security of web applications has emerged as one of the defining challenges of the contemporary digital landscape. As organisations increasingly depend on browser-accessible platforms to conduct business, manage sensitive data, and deliver public services, the attack surface exposed to adversaries has grown proportionally. Penetration testing --- the authorised, systematic practice of probing a system for exploitable weaknesses --- has become an indispensable component of modern information security programmes. However, the operational processes that surround penetration testing, particularly the phases of structured reporting and iterative fix verification (retesting), remain largely manual, time-intensive, and inconsistent across practitioners and engagements \cite{ptes}.
+
+This project presents \textbf{OkNexus}, an AI-aware, memory-based vulnerability reporting and autonomous retesting platform. OkNexus is designed to reduce the manual overhead of both composing structured vulnerability reports and independently verifying that reported vulnerabilities have been remediated, by integrating large language model (LLM) reasoning, scoped Retrieval-Augmented Generation (RAG), and a headless browser-driven agentic verification engine into a single coherent workflow. The system is intended for use by professional penetration testers and security analysts operating within authorised engagement contexts.
+
+\section{Motivation}
+
+The motivation for OkNexus arises from direct observation of the inefficiencies inherent in conventional penetration testing workflows. A single enterprise-scale engagement may yield dozens to hundreds of individual findings, each of which must be documented with technical precision, assigned a severity rating, and accompanied by reproduction evidence. Upon developer remediation, each finding must be individually retested --- a process that demands the same level of technical expertise as the original discovery. When multiplied across concurrent engagements, these demands create a significant resource bottleneck that constrains the throughput of security teams and delays the delivery of verified assurance to clients.
+
+The recent maturation of instruction-following LLMs and their demonstrated capability for structured reasoning about software vulnerabilities \cite{llm_cybersecurity_survey2024} presents a compelling opportunity to automate the cognitive labour involved in both report composition and fix verification. OkNexus operationalises this opportunity through a purpose-built architecture that addresses the specific requirements of professional security reporting with academic rigour and engineering discipline.
+
+\section{Problem Statement}
+
+The following specific problems are addressed by this project:
+
+\begin{enumerate}
+    \item Manual penetration test report composition is repetitive, time-consuming, and yields inconsistent quality across individual practitioners.
+
+    \item AI writing assistance, when applied to security reporting without domain-specific context grounding, produces generic and unreliable suggestions due to LLM hallucination.
+
+    \item Fix verification (retesting) requires re-engagement of skilled testers for each claimed remediation, imposing high resource costs that scale linearly with finding volume.
+
+    \item Manual retesting lacks a standardised, auditable trace of the verification process, reducing the evidentiary value of retest reports for clients and auditors.
+
+    \item Inconsistency in vulnerability severity assignment across different testers reduces the comparability and quality of reports delivered to the same client over multiple engagements.
+\end{enumerate}
+
+\section{Objectives}
+
+The objectives of this project are:
+
+\begin{enumerate}
+    \item To design and implement a structured web-based findings management platform covering the full penetration testing reporting lifecycle.
+
+    \item To develop an autonomous retesting engine that independently verifies fix effectiveness using a headless browser controlled by an LLM-based observe-reason-act loop.
+
+    \item To integrate a local RAG module that grounds AI-generated content suggestions in engagement-specific artefacts, improving relevance and reducing hallucination.
+
+    \item To expose a real-time Server-Sent Events (SSE) streaming interface that delivers per-turn agent reasoning to the frontend, ensuring full auditability of autonomous verification.
+
+    \item To cover seven web application vulnerability classes: IDOR, Stored XSS, Reflected XSS, Authentication Bypass, CSRF, Open Redirect, and SQL Injection.
+
+    \item To deploy the system as a production-ready split-service architecture (Vercel + Railway) suitable for real-world security consulting use.
+\end{enumerate}
+
+\section{Scope and Limitations}
+
+OkNexus targets web application vulnerabilities accessible via HTTP/HTTPS and interactable through a standard web browser. It does not address network-layer, binary exploitation, or mobile application vulnerabilities. The autonomous retesting engine operates against applications reachable by a headless Chromium instance and is limited to the seven supported vulnerability classes. The AI layer requires internet connectivity for LLM inference via Groq and Google Gemini; a local inference mode is identified as future work.
+
+\section{Organisation of the Report}
+
+Chapter~2 establishes the technical background required to understand the design of OkNexus, covering web application security, vulnerability classification, LLM foundations, agentic AI, RAG, and headless browser automation. Chapter~3 provides a comprehensive survey of related literature and prior work. Chapter~4 presents the system design and architecture. Chapter~5 describes the implementation in detail. Chapter~6 discusses the results and analysis from system evaluation. Chapter~7 presents conclusions and directions for future work.

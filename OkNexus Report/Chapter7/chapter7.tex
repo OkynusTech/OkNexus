@@ -1,0 +1,57 @@
+\chapter{Conclusion and Future Work}
+
+\section{Summary of Contributions}
+
+This project has designed, implemented, and evaluated OkNexus, an AI-aware, memory-based vulnerability reporting and autonomous retesting platform. The work makes the following contributions to the field of AI-assisted cybersecurity tooling:
+
+\textbf{Purpose-built autonomous retesting engine:} OkNexus introduces the first published system specifically designed for autonomous verification of web application vulnerability remediations. The engine operationalises the observe-reason-act agentic loop \cite{react2023} for the specific problem of fix verification, integrating Playwright headless browser automation, the \texttt{llama-3.3-70b-versatile} LLM via Groq, a closed typed action vocabulary, and adaptive turn budgets across seven supported vulnerability classes.
+
+\textbf{RAG-grounded AI-assisted report composition:} The platform embeds a scoped Retrieval-Augmented Generation module that grounds AI-generated finding descriptions, remediation guidance, and executive summaries in engagement-specific artefacts. Using a locally run \texttt{BAAI/bge-small-en-v1.5} sentence embedding model, the system avoids external API calls for retrieval and maintains data locality, while substantially reducing hallucination compared to generic LLM prompting.
+
+\textbf{Real-time auditable verification interface:} The SSE-based streaming architecture provides the tester with a live per-turn trace of the agent's reasoning and actions, enabling informed human oversight and supporting the evidentiary requirements of professional security consulting engagements.
+
+\textbf{Production-ready split-service architecture:} OkNexus is deployable as a Vercel-hosted Next.js frontend and a Railway-hosted Docker container, providing an immediately usable platform for security teams without requiring custom infrastructure.
+
+\textbf{Security-first agent design:} The closed action vocabulary, JSON schema validation, credential isolation, and non-disruptive XSS payload design collectively instantiate a principled approach to safe agentic automation in security contexts, addressing the prompt injection and credential leakage risks identified in the AI agent security literature \cite{ai_agents_under_threat2024, prompt_injection_review2025}.
+
+\section{Limitations}
+
+The following limitations of the current implementation are acknowledged:
+
+\begin{enumerate}
+    \item \textbf{Limited vulnerability coverage:} Seven vulnerability types are currently supported. Business logic flaws, race conditions, SSRF, XXE, SSTI, and deserialization vulnerabilities are not addressed.
+
+    \item \textbf{Dependency on cloud LLM services:} The retest engine requires internet connectivity to the Groq API. Service outages or rate limiting will interrupt active verification sessions. A local inference mode is not available in the current implementation.
+
+    \item \textbf{Authentication complexity:} The engine supports three authentication patterns (form login, Bearer token, cookie). Multi-factor authentication, CAPTCHA-protected login forms, and custom JavaScript-driven authentication flows require manual extension of the \texttt{auth.py} module.
+
+    \item \textbf{DOM serialisation limitations:} Vulnerability conditions expressed through SVG, canvas, or WebGL rendering are not captured by the current \texttt{page\_state.py} DOM serialiser, contributing to inconclusive verdicts in some edge cases.
+
+    \item \textbf{Absent formal benchmarking:} A comprehensive empirical evaluation of agent verdict accuracy against ground-truth patched and unpatched application states across a standardised benchmark has not yet been completed. The quantitative results table in Chapter~6 is pending completion of the full evaluation study.
+
+    \item \textbf{Single-user tenancy:} The current access control model scopes all data to individual user accounts. Team-level collaboration with role-based access control is not supported.
+\end{enumerate}
+
+\section{Future Work}
+
+The following directions are identified for future development:
+
+\textbf{Expanded vulnerability class coverage:} Extending the engine to cover SSRF, SSTI, XXE, and business logic vulnerabilities requires new executor capabilities (e.g., out-of-band DNS callback monitoring for blind SSRF) and class-specific prompt engineering. This is the highest-priority engineering extension.
+
+\textbf{Local LLM inference mode:} Integrating a local inference backend via the Ollama API or vLLM would enable air-gapped deployment for engagements conducted in classified or data-sensitive environments where cloud API calls are prohibited.
+
+\textbf{Formal benchmark evaluation:} A rigorous evaluation study using DVWA, WebGoat, Juice Shop, and a custom benchmark application, with ground-truth patched and unpatched configurations for each supported vulnerability class, is planned as the next research deliverable. This will produce published Correct Verdict Rate, False Positive Rate, and False Negative Rate metrics enabling direct comparison with future autonomous retesting systems.
+
+\textbf{CI/CD integration:} A GitHub App or GitLab webhook integration would trigger autonomous retests automatically when a fix branch is merged, closing the loop between development and verification without requiring manual tester action.
+
+\textbf{Team collaboration and RBAC:} Role-based access control with support for lead tester, junior tester, and quality reviewer roles would reflect the team structures common in professional security consulting and enable the platform to serve larger organisations.
+
+\textbf{Report export and client portal:} A formatted PDF/DOCX report export capability and a read-only client portal for viewing findings and submitting remediation claims would complete the end-to-end workflow from initial scoping to final sign-off.
+
+\textbf{Adversarial robustness:} Future work should formally evaluate the engine's resistance to prompt injection attacks embedded in the target application's content, and investigate fine-tuning and output filtering defences informed by the adversarial agent security literature \cite{ai_agents_under_threat2024}.
+
+\section{Concluding Remarks}
+
+OkNexus demonstrates that the integration of large language model reasoning, headless browser automation, and retrieval-augmented generation can meaningfully address two of the most resource-intensive phases of the professional penetration testing lifecycle: structured report composition and iterative fix verification. By maintaining a closed action vocabulary, streaming a full reasoning trace to the human operator, and grounding AI suggestions in engagement-specific artefacts, the system achieves both operational utility and the auditability required in professional security contexts.
+
+The project establishes a foundation upon which the extensions identified above can be built, with the long-term goal of a production-grade AI-native security operations platform that amplifies the expertise and throughput of professional penetration testers without displacing the human judgment that remains essential in high-stakes security assurance.

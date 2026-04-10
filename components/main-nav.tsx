@@ -17,7 +17,6 @@ import {
     User,
     RefreshCw,
 } from 'lucide-react';
-import { useSession, signOut } from 'next-auth/react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,15 +26,21 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from '@/lib/supabase-client';
+import { useAuth } from '@/hooks/use-auth';
 
 export function MainNav() {
     const pathname = usePathname();
-    const { data: session } = useSession();
+    const { user } = useAuth();
 
     // Hide nav on auth pages and client portal (portal has its own header)
     if (pathname === '/login' || pathname === '/register' || pathname === '/client-login' || pathname.startsWith('/portal')) {
         return null;
     }
+
+    const name = user?.user_metadata?.full_name ?? user?.email ?? '';
+    const email = user?.email ?? '';
+    const image = user?.user_metadata?.avatar_url ?? null;
 
     const routes = [
         {
@@ -77,7 +82,7 @@ export function MainNav() {
         {
             href: '/templates',
             label: 'Templates',
-            icon: Shield, // Using Shield as placeholder for templates/security
+            icon: Shield,
             active: pathname.startsWith('/templates'),
         },
         {
@@ -97,13 +102,13 @@ export function MainNav() {
                     </span>
                 </Link>
 
-                <div className="flex items-center gap-2 lg:gap-3 overflow-x-auto no-scrollbar fade-right">
+                <div className="flex flex-1 min-w-0 items-center gap-1 lg:gap-2 overflow-x-auto no-scrollbar">
                     {routes.map((route) => (
                         <Link
                             key={route.href}
                             href={route.href}
                             className={cn(
-                                "flex items-center text-sm font-medium transition-colors hover:text-primary px-3 py-2 rounded-md gap-2",
+                                "flex items-center text-sm font-medium transition-colors hover:text-primary px-2 py-2 rounded-md gap-1.5 whitespace-nowrap",
                                 route.active
                                     ? "bg-accent text-accent-foreground"
                                     : "text-muted-foreground"
@@ -115,17 +120,17 @@ export function MainNav() {
                     ))}
                 </div>
 
-                <div className="ml-auto flex items-center space-x-4">
-                    {session?.user ? (
+                <div className="ml-4 flex shrink-0 items-center">
+                    {user ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                                     <Avatar className="h-9 w-9 border border-input">
-                                        {session.user.image ? (
-                                            <AvatarImage src={session.user.image} alt={session.user.name || ''} />
+                                        {image ? (
+                                            <AvatarImage src={image} alt={name} />
                                         ) : null}
                                         <AvatarFallback>
-                                            {session.user.name?.charAt(0) || <User className="h-4 w-4" />}
+                                            {name?.charAt(0) || <User className="h-4 w-4" />}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>
@@ -133,10 +138,8 @@ export function MainNav() {
                             <DropdownMenuContent className="w-56" align="end" forceMount>
                                 <DropdownMenuLabel className="font-normal">
                                     <div className="flex flex-col space-y-1">
-                                        <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                                        <p className="text-xs leading-none text-muted-foreground">
-                                            {session.user.email}
-                                        </p>
+                                        <p className="text-sm font-medium leading-none">{name}</p>
+                                        <p className="text-xs leading-none text-muted-foreground">{email}</p>
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
@@ -149,7 +152,7 @@ export function MainNav() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600 focus:text-red-600"
-                                    onClick={() => signOut({ callbackUrl: '/login' })}
+                                    onClick={() => supabase.auth.signOut().then(() => window.location.href = '/login')}
                                 >
                                     <LogOut className="mr-2 h-4 w-4" />
                                     Log out

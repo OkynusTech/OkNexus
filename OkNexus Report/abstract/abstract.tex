@@ -1,0 +1,15 @@
+{\centering
+    \par
+    \large \textbf{\underline{ABSTRACT}} \par
+}\vspace{0.7cm}
+
+\noindent The growing complexity of web application ecosystems has rendered traditional vulnerability management workflows increasingly inadequate. Manual penetration test reporting is time-intensive, prone to inconsistency, and the retesting phase --- wherein a developer's claim of a fix must be independently verified --- demands re-engagement of skilled testers, introducing significant delays in the secure software development lifecycle.
+
+\noindent This project presents \textbf{OkNexus}, an AI-aware, memory-based vulnerability reporting and autonomous retesting platform. OkNexus integrates a structured findings management frontend with a Python-based autonomous retesting engine that uses a \textit{observe-reason-act} agentic loop powered by a large language model (LLM). The system supports seven classes of web application vulnerabilities --- including Insecure Direct Object Reference (IDOR), Stored and Reflected Cross-Site Scripting (XSS), Authentication Bypass, Cross-Site Request Forgery (CSRF), Open Redirect, and SQL Injection --- and autonomously verifies whether a reported vulnerability has been remediated by interacting with the target application through a headless Chromium browser controlled via Playwright.
+
+\noindent The AI layer employs a multi-provider abstraction supporting Groq (\texttt{llama-3.3-70b-versatile}) and Google Gemini, with automatic runtime fallback. A local semantic search module built on the \texttt{BAAI/bge-small-en-v1.5} sentence-embedding model implements scoped Retrieval-Augmented Generation (RAG) to ground AI-generated suggestions in engagement-specific context. The retest engine communicates results to the frontend in real-time via Server-Sent Events (SSE), providing per-turn reasoning traces, confidence scores, and plain-English verdict summaries.
+
+\noindent The platform substantially reduces the manual overhead associated with both report composition and fix verification, enabling security teams to scale their operations without proportional increases in headcount. The system is deployable as a split-service architecture, with the Next.js frontend hosted on Vercel and the Python engine containerised for Railway.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} vulnerability management, penetration testing, large language models, autonomous retesting, retrieval-augmented generation, agentic AI, cybersecurity automation, web application security, headless browser automation, observe-reason-act loop

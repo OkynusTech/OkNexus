@@ -1,32 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { Card } from '@/components/ui/card';
-import { getAllEngagements } from '@/lib/storage';
+import { getAllEngagements, loadState } from '@/lib/storage';
 import { Engagement } from '@/lib/types';
 import Link from 'next/link';
 import { formatDate } from '@/lib/report-utils';
 import { FileText, Calendar, Shield } from 'lucide-react';
 
 export default function ClientEngagementsPage() {
-    const { data: session } = useSession();
     const [engagements, setEngagements] = useState<Engagement[]>([]);
 
     useEffect(() => {
-        if (session) {
-            const clientId = (session.user as any).clientId;
-            if (!clientId) return;
+        const userId = localStorage.getItem('ok_portal_user_id');
+        if (!userId) return;
 
-            const allEngagements = getAllEngagements();
-            const clientEngagements = allEngagements.filter(e => e.clientId === clientId);
+        const state = loadState();
+        const portalUser = state.clientUsers.find(u => u.id === userId);
+        if (!portalUser) return;
 
-            // Sort by date desc
-            clientEngagements.sort((a, b) => new Date(b.metadata.startDate).getTime() - new Date(a.metadata.startDate).getTime());
+        const clientId = portalUser.clientId;
+        const allEngagements = getAllEngagements();
+        const clientEngagements = allEngagements.filter(e => e.clientId === clientId);
 
-            setEngagements(clientEngagements);
-        }
-    }, [session]);
+        clientEngagements.sort((a, b) =>
+            new Date(b.metadata.startDate).getTime() - new Date(a.metadata.startDate).getTime()
+        );
+
+        setEngagements(clientEngagements);
+    }, []);
 
     return (
         <div className="space-y-6">

@@ -1,0 +1,83 @@
+\chapter{Implementation}
+
+\section{Introduction}
+
+This chapter describes the implementation of each component of OkNexus, covering the technology stack, the AI provider abstraction layer, the agentic observe-reason-act loop, vulnerability-class-specific testing strategies, the real-time streaming interface, and the deployment configuration. Rationale for key implementation decisions is discussed in relation to the architectural design in Chapter~4.
+
+\section{Technology Stack}
+
+\subsection{Frontend: Next.js and TypeScript}
+
+The frontend is built on Next.js 14 using the App Router architecture and React Server Components. Server Actions allow AI API calls and data-fetching to occur on the server, keeping API keys and business logic out of the client bundle. TypeScript is used throughout to provide static type safety across the data model. Authentication is implemented with NextAuth.js (Auth.js v5) using Google OAuth~2.0.
+
+\subsection{Retest Engine: Python and Flask}
+
+The retest engine uses Python 3.11 and the Flask micro-framework. Python was selected because the Playwright Python SDK offers the most mature headless browser automation API, and because the synchronous execution model simplifies the orchestrator's control flow. SSE streaming is implemented by yielding response chunks from a generator function served as a \texttt{text/event-stream} response.
+
+\subsection{Headless Browser: Playwright}
+
+Playwright was selected over Puppeteer and Selenium due to its: unified cross-browser API; first-class network request interception support (required for the \texttt{api\_request} action); superior handling of modern single-page application rendering; and active maintenance by Microsoft \cite{playwright_microsoft}.
+
+\subsection{LLM Inference: Groq}
+
+The primary LLM provider for the retest engine is the Groq API, serving \texttt{llama-3.3-70b-versatile} on Groq's Language Processing Unit (LPU) hardware. LPU-based serving provides substantially lower inference latency than GPU-based alternatives for this model class, which is important given that each agent turn incurs one LLM call. The \texttt{llm\_client.py} module wraps the Groq Python SDK with exponential backoff retry logic.
+
+\subsection{Local Semantic Search: Transformers.js}
+
+The RAG embedding model is served via \texttt{@xenova/transformers}, running the \texttt{BAAI/bge-small-en-v1.5} ONNX model in the Node.js server process. On first run, approximately 33~MB of model files are downloaded to \texttt{.cache/transformers/}; subsequent runs load the model from cache. This eliminates the cost and latency of external embedding API calls and ensures artefact content remains within the user's infrastructure.
+
+\section{AI Provider Abstraction Implementation}
+
+The \texttt{getCompletion} function in \texttt{lib/ai-provider.ts} accepts a provider identifier and a normalised options object containing system prompt, user message, temperature, and maximum token count. Provider-specific request schema mapping occurs internally, fully decoupling higher-level action implementations from the underlying API format. Automatic fallback is implemented via a try/catch with ordered provider preference.
+
+\section{Agentic Observe-Reason-Act Loop Implementation}
+
+\subsection{System Prompt Construction}
+
+The system prompt in \texttt{agent\_brain.py} has three sections: (1) the agent's role, operating constraints, and output format requirements (JSON-only responses conforming to the action schema); (2) the vulnerability-specific context (type, target URL, reproduction steps, authentication details); and (3) the full action schema with per-action documentation. The strict JSON output requirement, enforced by both the prompt and the schema validator, is the primary mechanism ensuring reliable, parseable responses.
+
+\subsection{Conversation History Management}
+
+The agent brain maintains a list of message objects. Each turn appends two messages: the user message (current page state observation) and the assistant message (LLM action response). The full history is passed on each LLM call, providing the model with all prior observations and actions as context. History length is bounded by the turn budget to prevent context window overflow.
+
+\subsection{Page State Serialisation}
+
+At each turn, \texttt{page\_state.py} extracts: the current URL, the HTTP status code of the most recent navigation, visible text content from the rendered DOM, the presence and values of key form fields, visible cookie names (not values), and visible JavaScript error messages. This structured representation provides sufficient environmental signal for LLM reasoning without overwhelming the context window with raw HTML.
+
+\section{Vulnerability-Class-Specific Testing Strategies}
+
+\textbf{IDOR:} The agent authenticates as the specified low-privilege user, constructs API requests or navigation actions targeting object identifiers belonging to a different user, and confirms whether access is denied (fixed) or the foreign data is returned (not fixed).
+
+\textbf{Stored XSS:} The agent injects the non-disruptive sentinel payload \texttt{<img src=x onerror="window['\_\_xss\_oknexus']=1">} into the target input, submits, reloads the affected page, and uses \texttt{evaluate\_js} to check whether the global sentinel variable has been set.
+
+\textbf{Reflected XSS:} The agent constructs a URL embedding the payload in the target parameter and evaluates whether the payload is reflected and executed.
+
+\textbf{Auth Bypass:} The agent navigates directly to protected endpoints without completing authentication and observes whether access is granted or redirected.
+
+\textbf{CSRF:} The agent uses \texttt{extract\_form\_tokens} to enumerate hidden fields in the target form, then submits a request omitting the CSRF token and observes whether the server rejects it.
+
+\textbf{Open Redirect:} The agent uses \texttt{check\_redirect} to navigate to the target URL with a manipulated redirect parameter pointing to an external domain and observes the final destination URL.
+
+\textbf{SQL Injection:} The agent submits SQL metacharacter payloads in the target parameter and observes whether SQL error messages or anomalous data appear in the response.
+
+\section{Real-Time SSE Streaming Implementation}
+
+The \texttt{event\_stream.py} module implements a thread-safe event bus using a \texttt{Queue} object. The orchestrator publishes events to the queue; the Flask response generator dequeues and yields them as SSE-formatted text. Event types published during a session are: \texttt{turn\_start} (with turn number and maximum turns), \texttt{turn\_action} (with action type and reasoning), \texttt{turn\_result} (with executor output), \texttt{verdict} (with status, confidence, and summary), \texttt{complete} (full result JSON), and \texttt{error} (always emitted on exception to prevent client hang).
+
+The Next.js frontend subscribes to the SSE stream using the standard browser \texttt{EventSource} API and updates the React state to render each event in the live log view as it arrives.
+
+\section{Security Implementation Decisions}
+
+Several implementation decisions were made specifically to harden the system against misuse:
+
+\begin{enumerate}
+    \item \textbf{Credential isolation}: Credentials are passed only to the Playwright executor and are never included in any LLM prompt or server log, preventing leakage through the model's context.
+
+    \item \textbf{Non-disruptive XSS payload}: The sentinel payload (\texttt{window['\_\_xss\_oknexus']=1}) sets a memory-only global variable and does not modify the DOM, trigger alerts, or affect other users.
+
+    \item \textbf{Action schema validation}: All LLM-generated JSON is validated against the canonical action schema before dispatch, preventing the model from invoking operations outside the defined vocabulary regardless of what it generates.
+
+    \item \textbf{Screenshot privacy}: Screenshot files are stored in a configurable directory outside the web root. The default path is \texttt{.retest\_screenshots/} in the project root, accessible only to the server process.
+
+    \item \textbf{Proxy architecture}: The retest engine URL is stored server-side in an environment variable and never exposed to the browser client, preventing direct access to the engine's API.
+\end{enumerate}

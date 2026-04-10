@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Mail, Plus, UserPlus, Shield } from 'lucide-react';
 import { ClientUser, ClientProfile } from '@/lib/types';
 import { getClientUsers, createClientUser, deleteClientUser, updateClientUser } from '@/lib/storage';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/hooks/use-auth';
 
 interface ClientUserManagementDialogProps {
     client: ClientProfile;
@@ -31,7 +31,7 @@ interface ClientUserManagementDialogProps {
 }
 
 export function ClientUserManagementDialog({ client, open, onOpenChange }: ClientUserManagementDialogProps) {
-    const { data: session } = useSession();
+    const { user } = useAuth();
     const [users, setUsers] = useState<ClientUser[]>([]);
     const [isInviting, setIsInviting] = useState(false);
 
@@ -63,7 +63,7 @@ export function ClientUserManagementDialog({ client, open, onOpenChange }: Clien
             name: inviteName,
             role: inviteRole,
             status: 'invited',
-            invitedBy: session?.user?.name || 'Unknown',
+            invitedBy: user?.user_metadata?.full_name || user?.email || 'Unknown',
             invitedAt: new Date().toISOString(),
             avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${inviteName}`,
             passwordHash: demoPasswordHash
