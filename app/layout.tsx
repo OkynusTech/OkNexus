@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/contexts/theme-provider";
 import AuthProvider from "@/components/contexts/auth-provider";
 import { MainNav } from "@/components/main-nav";
+import StateHydrator from "@/components/StateHydrator";
 import { inter } from "@/lib/fonts";
 
 import { siteConfig } from "../config/site";
@@ -71,6 +72,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-background antialiased`}>
         <AuthProvider>
           <ThemeProvider>
+            <StateHydrator />
             <MainNav />
             {children}
           </ThemeProvider>

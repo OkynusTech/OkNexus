@@ -1,6 +1,13 @@
 import { AppState, ClientProfile, Engagement, ServiceProviderProfile, ReportTemplate, ValidationResult, Application, Engineer, Artifact, ArtifactScope, ArtifactType, Component, ComponentFinding, ExtractedComponent, ComponentType, TrustZone, ClientUser, RemediationEvent, RemediationOutcome, RetestRequest, RetestStatus, FindingStatus, AutoRetestResult } from './types';
 import { REPORT_TEMPLATES as SYSTEM_TEMPLATES } from './constants';
 import { validateTemplateCompleteness } from './template-validation';
+import { queueDBSync } from './db-sync';
+
+declare global {
+    interface Window {
+        __dbSyncEmail?: string;
+    }
+}
 
 const STORAGE_KEY = 'security_report_builder_data';
 
@@ -45,12 +52,13 @@ export const loadState = (): AppState => {
     }
 };
 
-// Save data to localStorage
+// Save data to localStorage and queue a background sync to Supabase
 export const saveState = (state: AppState): void => {
     try {
         if (typeof window === 'undefined') return;
         const serialized = JSON.stringify(state);
         localStorage.setItem(STORAGE_KEY, serialized);
+        queueDBSync(window.__dbSyncEmail, state);
     } catch (err) {
         console.error('Error saving state to localStorage:', err);
     }
@@ -967,8 +975,9 @@ export const getTemplate = (id: string): ReportTemplate | undefined => {
 
 export const getAllTemplates = (): ReportTemplate[] => {
     const state = loadState();
-    const userTemplates = state.templates || [];
     const systemTemplates = Object.values(SYSTEM_TEMPLATES);
+    const systemIds = new Set(systemTemplates.map(t => t.id));
+    const userTemplates = (state.templates || []).filter(t => !systemIds.has(t.id));
     return [...systemTemplates, ...userTemplates];
 };
 

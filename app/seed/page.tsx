@@ -54,7 +54,7 @@ export default function SeedPage() {
 
       // ── Template ──────────────────────────────────────────────────────────
       const templates = [{
-        id: 'tpl_enterprise_pentest',
+        id: 'enterprise',
         name: 'Enterprise Pentest Pro',
         description: 'Comprehensive pentest report with CVSS scoring, remediation roadmap, and executive-ready risk summary.',
         strictnessLevel: 'flexible',
@@ -93,7 +93,7 @@ export default function SeedPage() {
         // ── ZestPay Engagements ──
         {
           id: 'eng_zp_1', serviceProviderId: spId, clientId: 'cl_fintech', applicationId: 'app_zp_web',
-          engineerIds: ['eng_arjun', 'eng_priya'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_arjun', 'eng_priya'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'ZestPay Merchant Portal — Q1 Pentest', assessmentType: 'Penetration Testing', startDate: d(90), endDate: d(70), testingMethodology: 'Black-box + Grey-box hybrid', scope: ['https://merchant.zestpay.in', 'Admin panel', 'API endpoints'], outOfScope: ['Third-party payment processors', 'Physical infrastructure'], assumptions: ['Test accounts provided by client'], limitations: [], toolsUsed: ['Burp Suite Pro', 'Nmap', 'Nuclei', 'Metasploit'] },
           findings: [
@@ -106,7 +106,7 @@ export default function SeedPage() {
         },
         {
           id: 'eng_zp_2', serviceProviderId: spId, clientId: 'cl_fintech', applicationId: 'app_zp_api',
-          engineerIds: ['eng_rohan', 'eng_arjun'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_rohan', 'eng_arjun'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'ZestPay Payment API — Security Audit', assessmentType: 'Penetration Testing', startDate: d(60), endDate: d(45), testingMethodology: 'White-box API review + dynamic testing', scope: ['Payment API v2', 'Webhook endpoints', 'HMAC signing flow'], outOfScope: ['Stripe platform itself'], assumptions: ['API docs and credentials provided'], limitations: [], toolsUsed: ['Burp Suite', 'Postman', 'OWASP ZAP'] },
           findings: [
@@ -117,7 +117,7 @@ export default function SeedPage() {
         },
         {
           id: 'eng_zp_3', serviceProviderId: spId, clientId: 'cl_fintech', applicationId: 'app_zp_mobile',
-          engineerIds: ['eng_priya', 'eng_kiran'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_priya', 'eng_kiran'], templateId: 'enterprise',
           status: 'In Progress',
           metadata: { engagementName: 'ZestPay Consumer Mobile App — VAPT', assessmentType: 'Penetration Testing', startDate: d(20), endDate: d(-10), testingMethodology: 'Mobile (Android + iOS) — dynamic and static analysis', scope: ['Android APK v3.2.1', 'iOS IPA v3.2.0', 'Backend BFF API'], outOfScope: ['OS-level vulnerabilities'], assumptions: ['Rooted Android device and jailbroken iPhone provided'], limitations: [], toolsUsed: ['Frida', 'Objection', 'MobSF', 'Burp Suite'] },
           findings: [
@@ -128,7 +128,7 @@ export default function SeedPage() {
         // ── CarePlus Engagements ──
         {
           id: 'eng_cp_1', serviceProviderId: spId, clientId: 'cl_health', applicationId: 'app_cp_portal',
-          engineerIds: ['eng_ananya', 'eng_kiran'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_ananya', 'eng_kiran'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'CarePlus Patient Portal — HIPAA Compliance Pentest', assessmentType: 'Penetration Testing', startDate: d(120), endDate: d(100), testingMethodology: 'Grey-box. Focus on PHI exposure and access control.', scope: ['Patient portal', 'Appointment booking API', 'Document upload'], outOfScope: ['Hospital internal network'], assumptions: ['Test patient accounts provided'], limitations: [], toolsUsed: ['Burp Suite', 'Nikto', 'OWASP ZAP'] },
           findings: [
@@ -140,7 +140,7 @@ export default function SeedPage() {
         },
         {
           id: 'eng_cp_2', serviceProviderId: spId, clientId: 'cl_health', applicationId: 'app_cp_ehr',
-          engineerIds: ['eng_arjun', 'eng_ananya'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_arjun', 'eng_ananya'], templateId: 'enterprise',
           status: 'Review',
           metadata: { engagementName: 'CarePlus EHR System — Architecture Review', assessmentType: 'Architecture Review', startDate: d(40), endDate: d(25), testingMethodology: 'Design review, threat modeling, data-flow diagram analysis', scope: ['EHR API', 'Azure AD integration', 'Audit log pipeline'], outOfScope: ['Azure infrastructure itself'], assumptions: ['Architecture docs, sequence diagrams shared'], limitations: [], toolsUsed: ['Threat Dragon', 'Draw.io reviews'] },
           findings: [
@@ -151,7 +151,7 @@ export default function SeedPage() {
         // ── LearnSphere Engagements ──
         {
           id: 'eng_ls_1', serviceProviderId: spId, clientId: 'cl_edu', applicationId: 'app_ls_lms',
-          engineerIds: ['eng_kiran', 'eng_priya'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_kiran', 'eng_priya'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'LearnSphere LMS — Security Assessment', assessmentType: 'Penetration Testing', startDate: d(80), endDate: d(65), testingMethodology: 'Black-box web application testing', scope: ['LMS web app', 'Course delivery API', 'Payment integration'], outOfScope: ['GCP infrastructure'], assumptions: ['Student and instructor test accounts'], limitations: [], toolsUsed: ['Burp Suite', 'Nuclei', 'SQLMap'] },
           findings: [
@@ -162,7 +162,7 @@ export default function SeedPage() {
         },
         {
           id: 'eng_ls_2', serviceProviderId: spId, clientId: 'cl_edu', applicationId: 'app_ls_admin',
-          engineerIds: ['eng_rohan'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_rohan'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'LearnSphere Admin Panel — Internal Audit', assessmentType: 'Security Review', startDate: d(50), endDate: d(40), testingMethodology: 'Grey-box. Admin credentials provided.', scope: ['Admin dashboard', 'User management', 'Content management'], outOfScope: ['LMS student-facing app'], assumptions: ['Admin dev credentials provided'], limitations: [], toolsUsed: ['Burp Suite', 'Manual code review'] },
           findings: [
@@ -173,7 +173,7 @@ export default function SeedPage() {
         // ── SwiftMove Engagements ──
         {
           id: 'eng_sm_1', serviceProviderId: spId, clientId: 'cl_logistics', applicationId: 'app_sm_fleet',
-          engineerIds: ['eng_arjun', 'eng_rohan', 'eng_ananya'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_arjun', 'eng_rohan', 'eng_ananya'], templateId: 'enterprise',
           status: 'Completed',
           metadata: { engagementName: 'SwiftMove Fleet Tracker — Network + App Pentest', assessmentType: 'Penetration Testing', startDate: d(100), endDate: d(80), testingMethodology: 'Black-box testing of web app and WebSocket API', scope: ['Fleet tracking dashboard', 'WebSocket GPS feed', 'Dispatch API'], outOfScope: ['GPS hardware', 'Carrier network'], assumptions: ['Driver and dispatcher accounts provided'], limitations: [], toolsUsed: ['Burp Suite', 'wscat', 'Wireshark', 'Nmap'] },
           findings: [
@@ -185,7 +185,7 @@ export default function SeedPage() {
         },
         {
           id: 'eng_sm_2', serviceProviderId: spId, clientId: 'cl_logistics', applicationId: 'app_sm_driver',
-          engineerIds: ['eng_priya', 'eng_kiran'], templateId: 'tpl_enterprise_pentest',
+          engineerIds: ['eng_priya', 'eng_kiran'], templateId: 'enterprise',
           status: 'In Progress',
           metadata: { engagementName: 'SwiftMove Driver App — Mobile VAPT', assessmentType: 'Penetration Testing', startDate: d(15), endDate: d(-5), testingMethodology: 'Mobile dynamic analysis on Android (Flutter)', scope: ['SwiftMove Driver APK v2.1', 'Driver BFF API'], outOfScope: ['iOS app'], assumptions: ['Company test device with rooting allowed'], limitations: [], toolsUsed: ['MobSF', 'Frida', 'Burp Suite', 'apktool'] },
           findings: [

@@ -1,0 +1,54 @@
+\documentclass[12pt,openright]{report}
+\usepackage{nfsu-report}
+\usepackage[numbers]{natbib}
+
+%Add Your Details here 
+\setProjectTitle{Title of the Project} %Project Title in Initcap
+\setReportType{Project Report} %Report type (Rroject Report/ Thesis/ Dissertation Report) 
+\setHonorific{Mr} %Your honorific Mr/Ms/Miss/Mrs/Dr
+\setStudentName{Name of Student} %Student Name in Initcap
+\setEnrollmentNo{Enrollment Number} %Enrollment Number
+\setProgramName{M.Sc. Digital Forensics \& Information Security} 
+\setProgramSemester{I}
+\setSchoolName{School of Cybersecurity \& Digital Forensics}
+\setSupervisorName{Name of Supervisor}
+\setSupervisorDesig{Designation}
+\setCampusAdress{Gandhinagar}{382007}{Gujarat}{India}
+\setReportMonthYear{MONTH, YEAR}
+\setReportPeriod{Month Year}{Month Year}
+\input{./glossary/glossary}
+
+\begin{document}
+	\MakeTitlePage
+	\clearpage
+	\pagenumbering{Roman}
+	\setcounter{page}{2}
+	\MakeDeclarationPage
+	\clearpage
+	\MakeGuideCertificate
+	\clearpage
+ 	\MakeCertificate
+ 	\clearpage
+ 	\pagestyle{NFSUPageHFStyle}
+ 	\NFSUWatermarkOn
+ 	\input{./ack/ack}
+ 	\clearpage
+ 	\input{./abstract/abstract}
+ 	\clearpage
+ 	\MakeListOfAbbreviations
+ 	\clearpage
+ 	\MakeListOfTables
+ 	\clearpage
+ 	\MakeListOfFigures
+ 	\clearpage
+ 	\MakeTOC
+ 	\clearpage
+ 	\pagenumbering{arabic}
+ 	\pagestyle{NFSUPageHFStyle}
+ 	\NFSUWatermarkOn
+ 	\input{./Chapter1/Chapter1}
+ 	\clearpage
+ 	\input{./Chapter2/Chapter2}
+ 	\bibliographystyle{IEEEtran}
+ 	\bibliography{mybib}
+\end{document}

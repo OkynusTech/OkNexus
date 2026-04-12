@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,21 +40,8 @@ export default function ClientLoginPage() {
                 throw new Error('Invalid password');
             }
 
-            // 2. Sign in via NextAuth using the "Magic Prefix" protocol
-            // format: client::email::name::clientId::role::id
-            const magicToken = `client::${user.email}::${user.name}::${user.clientId}::${user.role}::${user.id}`;
-
-            const result = await signIn('credentials', {
-                username: magicToken,
-                password: 'password123', // Dummy password to pass checks
-                redirect: false,
-            });
-
-            if (result?.error) {
-                throw new Error('Authentication failed');
-            }
-
-            // 3. Redirect to Portal
+            // 2. Store portal session in localStorage and redirect
+            localStorage.setItem('ok_portal_user_id', user.id);
             router.push('/portal');
             router.refresh();
 

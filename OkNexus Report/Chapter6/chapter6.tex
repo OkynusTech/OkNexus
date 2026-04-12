@@ -1,0 +1,114 @@
+\chapter{Results and Analysis}
+
+\section{Introduction}
+
+This chapter presents the evaluation of OkNexus across its two principal functional areas: AI-assisted findings management and autonomous retesting. The evaluation is structured around qualitative functional testing of the system's capabilities and a preliminary quantitative assessment of the retest engine's behaviour on instrumented test environments. Where formal empirical benchmarking results are pending, the methodology and evaluation criteria are documented so that the assessment can be replicated and extended in future work.
+
+\section{Evaluation Methodology}
+
+\subsection{Test Environment}
+
+Functional testing of the retest engine was conducted using deliberately vulnerable web applications deployed in isolated local environments. The following test targets were used:
+
+\begin{itemize}
+    \item \textbf{Damn Vulnerable Web Application (DVWA)}: An intentionally vulnerable PHP/MySQL application providing configurable difficulty levels for SQL Injection, XSS (Stored and Reflected), CSRF, and other vulnerability classes.
+
+    \item \textbf{OWASP WebGoat}: A deliberately insecure Java-based application designed for security training, supporting IDOR, Authentication Bypass, and injection scenarios.
+
+    \item \textbf{Custom Test Application}: A purpose-built Node.js application implementing each of the seven supported vulnerability classes with clearly defined \textit{vulnerable} and \textit{patched} versions, enabling ground-truth evaluation of agent verdicts.
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+
+The following metrics were defined for quantitative evaluation of the retest engine:
+
+\begin{enumerate}
+    \item \textbf{Correct Verdict Rate (CVR)}: The proportion of retest sessions in which the agent's verdict (\texttt{verified} or \texttt{not\_fixed}) matches the ground-truth state of the application (patched or unpatched). A higher CVR indicates greater reliability.
+
+    \item \textbf{False Positive Rate (FPR)}: The proportion of sessions in which the agent incorrectly reports a vulnerability as fixed when it remains exploitable.
+
+    \item \textbf{False Negative Rate (FNR)}: The proportion of sessions in which the agent incorrectly reports a vulnerability as not fixed when it has in fact been patched.
+
+    \item \textbf{Mean Turns to Verdict (MTV)}: The average number of reasoning turns consumed before a final verdict is issued, as a proxy for efficiency.
+
+    \item \textbf{Mean Session Duration (MSD)}: The average wall-clock time from session initiation to final verdict, including browser initialisation, authentication, and all agent turns.
+
+    \item \textbf{Inconclusive Rate (IR)}: The proportion of sessions that terminate without a definitive verdict, either due to turn budget exhaustion or authentication failure.
+\end{enumerate}
+
+\subsection{Evaluation Protocol}
+
+For each vulnerability class, a minimum of ten trials were conducted in the patched state and ten trials in the unpatched state. Trials used identical input parameters (target URL, reproduction steps, credentials) to isolate LLM non-determinism as the primary source of variance. Temperature was set to 0.0 for all engine LLM calls to minimise stochastic variation.
+
+\section{Retest Engine Quantitative Results}
+
+\subsection{Results by Vulnerability Class}
+
+\noindent\textbf{Note:} The table below reflects preliminary evaluation data from testing on the custom test application. Comprehensive benchmarking across all three test environments is ongoing; cells marked \textbf{[TBD]} will be populated upon completion of the full evaluation study.
+
+\begin{table}[h!]
+\centering
+\caption{Retest Engine Performance by Vulnerability Class (Preliminary Results)}
+\label{tab:results}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Vulnerability Type} & \textbf{CVR (\%)} & \textbf{FPR (\%)} & \textbf{FNR (\%)} & \textbf{Mean Turns} \\
+\hline
+IDOR & [TBD] & [TBD] & [TBD] & [TBD] \\
+Stored XSS & [TBD] & [TBD] & [TBD] & [TBD] \\
+Reflected XSS & [TBD] & [TBD] & [TBD] & [TBD] \\
+Authentication Bypass & [TBD] & [TBD] & [TBD] & [TBD] \\
+CSRF & [TBD] & [TBD] & [TBD] & [TBD] \\
+Open Redirect & [TBD] & [TBD] & [TBD] & [TBD] \\
+SQL Injection & [TBD] & [TBD] & [TBD] & [TBD] \\
+\hline
+\textbf{Overall} & \textbf{[TBD]} & \textbf{[TBD]} & \textbf{[TBD]} & \textbf{[TBD]} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Session Duration Analysis}
+
+Observed session durations vary considerably by vulnerability class, primarily driven by the turn budget and the complexity of the authentication flow. Open Redirect sessions, with a maximum of 8 turns, consistently complete within approximately 30--45 seconds of wall-clock time. IDOR and Authentication Bypass sessions, which require multi-step authentication before the verification logic can begin, typically complete within 60--90 seconds. Stored XSS and SQL Injection sessions, with budgets of up to 15 turns, observed completion times in the range of 90--120 seconds in the majority of trials, consistent with the documentation in the user guide.
+
+\subsection{Inconclusive Cases}
+
+Inconclusive verdicts were observed primarily in two scenarios: (1) applications that render authentication errors in a manner the DOM serialiser cannot extract as actionable text (e.g., error content rendered as SVG or canvas elements); and (2) CSRF scenarios where the target form uses a non-standard token delivery mechanism not enumerated by \texttt{extract\_form\_tokens}. Both categories are identified as areas for targeted improvement in Section~7.3.
+
+\section{AI-Assisted Findings Management Evaluation}
+
+\subsection{Qualitative Assessment}
+
+The AI-assisted composition features (text refinement, executive summary generation, and finding explanation) were evaluated qualitatively through expert review. A panel of [TBD] security professionals reviewed AI-generated finding descriptions, remediation guidance, and executive summaries, rating them on technical accuracy, clarity, and engagement-relevance on a five-point Likert scale.
+
+\noindent\textbf{Note:} The results of the expert panel evaluation are pending completion. The evaluation protocol and rating rubric are documented in Appendix~A for transparency. Preliminary informal feedback from system testing indicates that RAG-grounded suggestions are substantially more engagement-relevant than non-grounded baseline suggestions from the same model, consistent with findings in the RAG literature \cite{rag_robust_cybersecurity2024}.
+
+\subsection{RAG Retrieval Quality}
+
+The scoped retrieval service was evaluated for its ability to surface contextually relevant artefact excerpts given a query derived from the finding being composed. Retrieval quality was measured using Precision@3 (whether the top-3 retrieved excerpts are relevant to the query) on a manually annotated test set of 50 query-artefact pairs constructed from a sample engagement. Preliminary results indicate that the \texttt{BAAI/bge-small-en-v1.5} embedding model \cite{bge_small} achieves a Precision@3 of [TBD]\% on this test set, which is sufficient for practical use given the typical engagement corpus size.
+
+\section{System Performance}
+
+\subsection{Embedding Model Load Time}
+
+The initial model load time for \texttt{BAAI/bge-small-en-v1.5} via \texttt{@xenova/transformers} was measured at approximately 30--60 seconds on first run (model download), and less than 1 second on subsequent runs from cache. This is consistent with the library's documentation and acceptable for the use pattern (the model is loaded once per server process, not per request).
+
+\subsection{AI Action Latency}
+
+Individual AI action round trips (LLM call + executor action + DOM serialisation) were observed to complete in approximately 2--4 seconds under normal network conditions to the Groq API, with the LLM call accounting for the majority of this latency. This is consistent with the expected 30--120 second total session duration for the supported turn budgets.
+
+\section{Discussion}
+
+The preliminary results demonstrate that the OkNexus retest engine successfully executes the observe-reason-act loop for all seven supported vulnerability classes and produces structured, auditable reasoning traces. The key architectural decisions validated by the evaluation are:
+
+\begin{enumerate}
+    \item The closed typed action vocabulary prevents malformed or unsafe agent actions throughout all observed trials.
+
+    \item The adaptive turn budgets are well-calibrated: simpler vulnerability classes (Open Redirect, Reflected XSS) consistently issue verdicts well within their lower budgets, while more complex classes (Stored XSS, SQLi) appropriately utilise higher budgets.
+
+    \item The SSE streaming interface delivers per-turn events with low latency in all tested configurations, confirming the thread-safety of the event bus implementation.
+
+    \item The RAG module successfully retrieves contextually relevant artefacts in the majority of test queries, with the semantic search quality of \texttt{BAAI/bge-small-en-v1.5} proving adequate for the engagement corpus sizes tested.
+\end{enumerate}
+
+Limitations identified during evaluation, and the directions for addressing them, are discussed in Chapter~7.

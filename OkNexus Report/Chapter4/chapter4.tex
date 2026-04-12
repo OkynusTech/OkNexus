@@ -1,0 +1,194 @@
+\chapter{System Design and Architecture}
+
+\section{Introduction}
+
+This chapter presents the system design of OkNexus. The architecture is motivated by two overarching requirements: first, that the platform must serve as a complete, production-usable findings management system for professional penetration testers; and second, that it must support fully autonomous, auditable vulnerability verification without requiring manual tester intervention in the retesting cycle. These requirements necessitate a split-service architecture in which a web frontend handles human interaction and structured data management, while a dedicated backend service handles the resource-intensive and long-running autonomous verification tasks.
+
+\section{High-Level Architecture Overview}
+
+OkNexus is decomposed into three principal subsystems:
+
+\begin{enumerate}
+    \item \textbf{Frontend Application} --- A Next.js web application that provides the user interface for engagement management, findings creation and editing, retest queue management, and AI-assisted report composition. It communicates with the AI layer via server actions and with the retest engine via an internal HTTP proxy.
+
+    \item \textbf{AI Layer} --- A set of Next.js server-side actions and a local semantic search service that provide context-aware text generation, executive summary generation, finding explanation, template configuration, and cover graphic generation. The AI layer abstracts over multiple LLM providers (Groq and Google Gemini) and provides fallback routing between them.
+
+    \item \textbf{Retest Engine} --- A standalone Python Flask service that exposes an HTTP endpoint for initiating vulnerability retests. The engine encapsulates a headless Chromium browser (via Playwright), an LLM-powered observe-reason-act loop, and a Server-Sent Events (SSE) streaming interface for real-time progress reporting to the frontend.
+\end{enumerate}
+
+The three subsystems are designed to be independently deployable: the Next.js application is deployed to Vercel's serverless platform, while the retest engine runs as a Docker container on Railway.
+
+\section{Frontend Application Design}
+
+\subsection{Engagement and Findings Management}
+
+The frontend provides a hierarchical data model organised around \textit{engagements} and \textit{findings}. An engagement represents a scoped penetration testing contract with a named client, a defined target, and a time period. Each engagement contains zero or more findings, each of which corresponds to a single identified vulnerability. A finding record stores: title, vulnerability type, severity, CVSS score, technical description, reproduction steps, evidence references, remediation recommendations, and the current remediation status.
+
+The findings editor is a rich-text interface augmented with AI action buttons that invoke the AI layer to refine or expand selected text, generate a finding explanation in business terms, or suggest remediation steps.
+
+\subsection{Retest Queue}
+
+The Retest Queue is a dedicated view that aggregates findings across all engagements for which the client has submitted a remediation claim. Each queue entry provides two action paths: \textit{Manual Update} (the tester sets status directly) and \textit{Auto-Retest} (launches the autonomous agent). The queue displays finding title, severity, client name, engagement name, and the client's stated claim.
+
+\subsection{Authentication and Multi-Tenancy}
+
+The platform uses Google OAuth 2.0 via the NextAuth.js library for user authentication. Access to engagements and findings is scoped to the authenticated user's account, providing basic multi-tenancy suitable for individual consultants and small teams.
+
+\section{AI Layer Design}
+
+\subsection{Provider Abstraction}
+
+The AI layer is implemented as a unified \texttt{getCompletion(provider, options)} function in \texttt{lib/ai-provider.ts}. This function handles API authentication, error handling, and response normalisation. At runtime, the system checks which providers are configured and automatically falls back to an available alternative.
+
+\begin{table}[h!]
+\centering
+\caption{AI Provider Configuration in OkNexus}
+\label{tab:ai_providers}
+\begin{tabular}{|l|l|p{5.5cm}|}
+\hline
+\textbf{Provider} & \textbf{Required Key} & \textbf{Primary Use Case} \\
+\hline
+Groq (\texttt{llama-3.3-70b-versatile}) & \texttt{GROQ\_API\_KEY} & Retest engine LLM, text actions, template wizard fallback \\
+Google Gemini & \texttt{GEMINI\_API\_KEY} & Template wizard (preferred), cover graphic SVG generation \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Context-Aware Text Refinement}
+
+The \texttt{refineTextAction} server action accepts a text selection and a refinement instruction. Before calling the LLM, it invokes the \texttt{ScopedRetrievalService} to retrieve semantically similar artefacts from the current engagement's corpus, injecting them as RAG context to ground the model's suggestions in engagement-specific details.
+
+\subsection{Executive Summary Generation}
+
+The \texttt{generateClientSummaryAction} takes the Critical and High severity findings for a given engagement and produces a three-to-four sentence business-focused executive summary suitable for the cover section of the client-facing report.
+
+\subsection{Template Wizard}
+
+The Template Wizard is a multi-turn conversational agent that progressively collects user preferences for report branding, section selection, font and colour palette, findings layout, and content verbosity. It supports six quick-start presets and emits a complete JSON template configuration on completion.
+
+\section{Semantic Search and RAG Module}
+
+\subsection{Embedding Model}
+
+OkNexus uses the \texttt{BAAI/bge-small-en-v1.5} sentence embedding model for local semantic search, served via the \texttt{@xenova/transformers} library within the Next.js server process. The model occupies approximately 33~MB and loads from cache in under one second after first run.
+
+\subsection{Artefact Indexing and Retrieval}
+
+When engagement artefacts are uploaded, the \texttt{ScopedRetrievalService} computes embedding vectors for each chunk and stores them in the application database. At AI action invocation time, the service encodes the current query, computes cosine similarity against all stored vectors scoped to the current engagement, and returns the top-$k$ most relevant excerpts for LLM context injection.
+
+\section{Retest Engine Design}
+
+\subsection{Overview}
+
+The Retest Engine accepts a structured retest request (vulnerability type, target URL, reproduction steps, authentication credentials) and returns a verdict (\texttt{verified}, \texttt{not\_fixed}, or \texttt{failed}) along with a full per-turn reasoning trace. All interactions with the target application occur through a controlled Playwright Chromium session.
+
+\subsection{Module Architecture}
+
+\begin{table}[h!]
+\centering
+\caption{Retest Engine Module Reference}
+\label{tab:engine_modules}
+\begin{tabular}{|l|p{9cm}|}
+\hline
+\textbf{Module} & \textbf{Responsibility} \\
+\hline
+\texttt{server.py} & Flask application; exposes the \texttt{/retest/stream} SSE endpoint and \texttt{/health} check \\
+\texttt{orchestrator.py} & Implements the observe-reason-act loop; dispatches actions and manages turn budget \\
+\texttt{agent\_brain.py} & Constructs the LLM system prompt; manages conversation history; parses JSON action objects \\
+\texttt{llm\_client.py} & Groq API client with exponential backoff and retry logic \\
+\texttt{executor.py} & Playwright browser session; implements each action type \\
+\texttt{page\_state.py} & DOM snapshot extraction; serialises visible page state to structured text \\
+\texttt{auth.py} & Handles form login, Bearer token, and Cookie authentication strategies \\
+\texttt{action\_schema.py} & Canonical schema definition for all valid LLM action types \\
+\texttt{decision.py} & Maps LLM verdict strings to normalised result status codes \\
+\texttt{config.py} & Environment variable parsing and validation \\
+\texttt{event\_stream.py} & Thread-safe SSE event bus for real-time streaming to the frontend \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Observe-Reason-Act Loop}
+
+Upon receiving a retest request, the orchestrator: (1) initialises a Playwright browser session and authenticates; (2) presents the current page state to the LLM; (3) parses the LLM's response as a typed JSON action object validated against the action schema; (4) dispatches the action to the appropriate executor method; (5) appends the action result to the conversation history and emits a \texttt{turn\_result} SSE event; and (6) repeats until a \texttt{verdict} action is issued or the turn budget is exhausted.
+
+\subsection{Action Type Design}
+
+\begin{table}[h!]
+\centering
+\caption{Supported LLM Action Types in the Retest Engine}
+\label{tab:actions}
+\begin{tabular}{|l|p{9cm}|}
+\hline
+\textbf{Action} & \textbf{Description} \\
+\hline
+\texttt{navigate} & Navigate the browser to a specified URL \\
+\texttt{fill} & Fill a form field identified by CSS selector \\
+\texttt{click} & Click a DOM element identified by CSS selector \\
+\texttt{api\_request} & Issue a direct HTTP request from within the browser context \\
+\texttt{evaluate\_js} & Evaluate a JavaScript expression and return its result \\
+\texttt{extract\_form\_tokens} & Extract all hidden input fields from a form (used for CSRF analysis) \\
+\texttt{check\_redirect} & Navigate and capture the final redirect destination URL \\
+\texttt{wait} & Pause execution for a specified number of milliseconds \\
+\texttt{verdict} & Issue the final verdict: \texttt{fixed}, \texttt{not\_fixed}, or \texttt{inconclusive} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Adaptive Turn Budgets}
+
+\begin{table}[h!]
+\centering
+\caption{Adaptive Turn Budgets by Vulnerability Type}
+\label{tab:turn_budgets}
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Vulnerability Type} & \textbf{Maximum Turns} \\
+\hline
+Open Redirect & 8 \\
+CSRF & 10 \\
+Reflected XSS & 10 \\
+IDOR & 12 \\
+Authentication Bypass & 12 \\
+Stored XSS & 15 \\
+SQL Injection & 15 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Real-Time SSE Streaming}
+
+The engine streams its progress via SSE using a thread-safe event bus. The orchestrator publishes events at each turn (\texttt{turn\_start}, \texttt{turn\_action}, \texttt{turn\_result}), on verdict issuance (\texttt{verdict}), and on completion or error (\texttt{complete}, \texttt{error}). The frontend subscribes and renders the live turn log in the retest dialog.
+
+\section{Deployment Architecture}
+
+\subsection{Production Deployment}
+
+The Next.js frontend is deployed to Vercel's serverless platform. The Python retest engine is containerised using a dedicated \texttt{Dockerfile.retest} and deployed as a long-running service on Railway. The two services communicate over HTTPS via the \texttt{RETEST\_ENGINE\_URL} environment variable, which is never exposed to the browser client.
+
+\subsection{Required Environment Variables}
+
+\begin{table}[h!]
+\centering
+\caption{Required Environment Variables for OkNexus Deployment}
+\label{tab:env_vars}
+\begin{tabular}{|l|l|p{5cm}|}
+\hline
+\textbf{Variable} & \textbf{Service} & \textbf{Purpose} \\
+\hline
+\texttt{GOOGLE\_CLIENT\_ID} & Vercel & Google OAuth client identifier \\
+\texttt{GOOGLE\_CLIENT\_SECRET} & Vercel & Google OAuth client secret \\
+\texttt{NEXTAUTH\_SECRET} & Vercel & JWT signing secret \\
+\texttt{NEXTAUTH\_URL} & Vercel & Canonical URL of the deployed frontend \\
+\texttt{GROQ\_API\_KEY} & Vercel + Railway & LLM inference via Groq API \\
+\texttt{GEMINI\_API\_KEY} & Vercel & Template wizard and cover graphic \\
+\texttt{NEXT\_PUBLIC\_AI\_ENABLED} & Vercel & AI feature flag (\texttt{true}/\texttt{false}) \\
+\texttt{RETEST\_ENGINE\_URL} & Vercel & URL of the Railway-hosted engine \\
+\texttt{GROQ\_MODEL} & Railway & LLM model identifier \\
+\texttt{HEADLESS} & Railway & Run Chromium headless (\texttt{true}/\texttt{false}) \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Data Flow}
+
+The end-to-end data flow for an autonomous retest is: (1) tester selects a finding from the Retest Queue and clicks \textit{Auto-Retest}; (2) the form is pre-populated from the finding record and submitted; (3) the frontend proxies the request to the engine via \texttt{/api/retest/stream}; (4) the engine authenticates, initialises the browser, and begins the agentic loop; (5) per-turn events stream to the frontend via SSE and are rendered in the live log view; (6) on verdict issuance, the finding record is updated with result status, confidence score, and verdict summary; (7) the tester reviews the complete reasoning trace before confirming.

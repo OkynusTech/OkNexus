@@ -1,0 +1,91 @@
+\chapter{Literature Survey}
+
+\section{Introduction}
+
+This chapter surveys the existing body of research and practice relevant to OkNexus across five thematic areas: conventional web application scanning tools, LLM applications in cybersecurity, autonomous penetration testing agent systems, retrieval-augmented generation for security tasks, and the specific gap of autonomous vulnerability retesting. A comparative analysis concludes the chapter by positioning OkNexus relative to the reviewed work and articulating the contributions it makes to address identified research gaps.
+
+\section{Conventional Vulnerability Scanning and Reporting Tools}
+
+\subsection{Web Application Scanners}
+
+The market for automated web application vulnerability scanners is mature. Tools such as OWASP ZAP (Zed Attack Proxy), Burp Suite Professional (PortSwigger), Nikto, and Acunetix employ a combination of passive analysis, active probing, and fuzzing to detect a wide range of vulnerability patterns. These tools are effective at identifying surface-level vulnerabilities through rule-based checks and heuristic payloads. However, they operate at the HTTP layer and lack the semantic reasoning capability to understand application-specific business logic, to chain multi-step exploitation paths, or to determine authoritatively whether a previously identified vulnerability has been genuinely fixed --- as opposed to merely obscured or patched in one code path while remaining exploitable in another.
+
+Commercial penetration testing management platforms such as PlexTrac, Dradis, and Faraday provide structured environments for tracking findings and generating reports but rely entirely on manual tester input for both finding documentation and fix verification. They offer template-based report generation but lack AI-assisted content generation and have no autonomous verification capability.
+
+\subsection{Report Generation Tools}
+
+Several tools address the report generation challenge in isolation. WriteHat and SysReptor allow testers to compose findings in a structured editor and export to formatted PDFs. These tools improve consistency and reduce formatting effort but do not address the semantic content challenge: the tester must still write technically accurate descriptions, remediation guidance, and severity justifications from scratch. The integration of LLMs into this workflow, grounded in engagement-specific context, is the contribution of OkNexus's AI-assisted composition module.
+
+\section{Large Language Models in Cybersecurity}
+
+\subsection{Systematic Reviews}
+
+Yao et al.\ \cite{llm_cybersecurity_survey2024} conducted a systematic literature review of 185 papers from top security venues (IEEE S\&P, ACM CCS, USENIX Security, NDSS) examining LLM applications across cybersecurity domains. They identify six primary application areas: vulnerability detection in source code, malware analysis and classification, threat intelligence generation, network intrusion detection, automated exploit generation, and security report writing. The review finds that LLMs achieve strong performance on structured, bounded tasks (such as classifying a code snippet as vulnerable or non-vulnerable) but face challenges on open-ended, multi-step tasks that require accurate environmental feedback.
+
+Ferrag et al.\ \cite{llm_cybersecurity_exploring2025} provide a further survey examining LLM roles across the full security lifecycle, including offensive and defensive applications. They observe that the primary limitation of LLM-based security tools is not model capability but rather the lack of grounded environmental observation --- models reasoning purely from text descriptions of application behaviour are prone to hallucination and cannot detect subtle, interaction-dependent vulnerabilities.
+
+\subsection{LLMs for Vulnerability Detection and Repair}
+
+Ahmad et al.\ \cite{llm_vuln_repair2026} review the state of LLM-based vulnerability detection and repair, noting that fine-tuned models on labelled vulnerability datasets (such as BigVul and D2A) substantially outperform zero-shot prompting for code-level vulnerability classification. For vulnerability repair, they identify that reinforcement learning from code execution feedback (rather than pure human preference feedback) produces models that generate compilable and semantically correct patches at higher rates. These findings motivate the use of structured action feedback (executor results) as the observation signal in OkNexus's agentic loop, rather than relying on the LLM's parametric knowledge of how a fix should look.
+
+Lin et al.\ \cite{vuln_detection_ml_survey2024} review 185+ papers on machine learning-based vulnerability detection and identify deep learning models (particularly graph neural networks and pre-trained code models such as CodeBERT) as state-of-the-art for static analysis. They note that dynamic analysis --- which requires executing the application and observing runtime behaviour --- remains an active research frontier, particularly for vulnerability classes that are not detectable from source code alone (such as IDOR, which depends on the application's access control logic at runtime).
+
+\section{Autonomous Penetration Testing Agents}
+
+\subsection{LLM-Based Agentic Systems}
+
+Shen et al.\ \cite{pentest_agent2024} present PentestAgent, a multi-agent framework for automated penetration testing comprising four specialised sub-agents: a reconnaissance agent, a web search agent, a planning agent, and an execution agent. Each agent is LLM-powered and contributes a distinct phase of the attack lifecycle. PentestAgent was evaluated on VulHub environments and HackTheBox Capture-the-Flag challenges, demonstrating that multi-agent decomposition improves success rates on complex exploitation tasks. However, PentestAgent focuses on initial vulnerability \textit{discovery} rather than \textit{verification of remediation}, and its evaluation is limited to CTF-style environments rather than realistic web applications.
+
+Chen et al.\ \cite{curriculum_pt2025} propose CurriculumPT, which applies curriculum learning to guide a multi-agent penetration testing system from simple to complex tasks. While this approach improves learning efficiency, it is evaluated on simulated environments and does not address the specific requirements of retesting in a professional consulting context.
+
+\subsection{Systematisation of Knowledge}
+
+Happe and Cito \cite{sok_autonomous_pentest2024} provide a Systematisation of Knowledge (SoK) comparing nine autonomous penetration testing agent architectures. Their analysis reveals several consistent limitations: (1) the majority of systems are evaluated on synthetic CTF environments rather than real web applications; (2) most systems target the exploitation phase of the pentest lifecycle, with almost no work on the retesting phase; (3) action vocabulary design is rarely discussed as a first-class design concern, despite its significance for reliability and security; and (4) auditability of the agent's reasoning process is rarely provided, limiting the usability of these tools in professional contexts where clients expect a clear trace of the verification methodology.
+
+OkNexus directly addresses findings (2), (3), and (4): it focuses on retesting as its primary design objective; it implements a carefully designed closed action vocabulary with schema validation; and it provides a full per-turn reasoning trace via SSE streaming.
+
+\subsection{Security of LLM Agents}
+
+Deng et al.\ \cite{ai_agents_under_threat2024} survey threats to AI agents and find that prompt injection attacks --- wherein adversarially crafted content in the agent's environment manipulates its reasoning and actions --- are a critical concern, with naive implementations exhibiting vulnerability rates exceeding 90\%. Greshake et al.\ \cite{prompt_injection_review2025} provide a comprehensive review of prompt injection attack taxonomies and defences. These findings directly motivate the security design of OkNexus's retest engine: by restricting the LLM's output to a closed action vocabulary, validating all outputs against a canonical schema, and keeping credentials entirely outside the model's context, the engine substantially reduces the attack surface for prompt injection.
+
+\section{Retrieval-Augmented Generation for Security}
+
+The application of RAG to cybersecurity has been explored primarily in the context of threat intelligence synthesis and security operations centre (SOC) automation. The PNNL technical report by the Pacific Northwest National Laboratory \cite{rag_robust_cybersecurity2024} examines the use of RAG to ground LLM-generated threat assessments in curated intelligence feeds, finding that RAG substantially reduces hallucination in threat attribution tasks. Shafran et al.\ \cite{rag_security_comprehensive2026} provide a comprehensive review of security threats \textit{to} RAG systems, identifying data poisoning and adversarial embedding manipulation as the primary attack surfaces. In OkNexus, the retrieval corpus is restricted to authenticated user-owned engagement artefacts, which substantially mitigates corpus poisoning risks.
+
+No prior published work has applied RAG specifically to the task of grounding AI-assisted vulnerability report composition in engagement-specific artefacts. The \texttt{ScopedRetrievalService} in OkNexus represents a novel application of RAG to this domain.
+
+\section{Comparative Analysis}
+
+Table~\ref{tab:comparison} presents a comparative summary of OkNexus against representative related systems:
+
+\begin{table}[h!]
+\centering
+\caption{Comparison of OkNexus with Related Systems}
+\label{tab:comparison}
+\begin{tabular}{|p{3.2cm}|c|c|c|c|c|}
+\hline
+\textbf{System} & \textbf{AI-Assisted Reporting} & \textbf{Auto Retest} & \textbf{RAG} & \textbf{Real-time Trace} & \textbf{Real Web Apps} \\
+\hline
+OWASP ZAP & No & No & No & No & Yes \\
+Burp Suite Pro & No & No & No & No & Yes \\
+PlexTrac / Dradis & No & No & No & No & Yes \\
+PentestAgent \cite{pentest_agent2024} & No & No & No & No & No (CTF) \\
+CurriculumPT \cite{curriculum_pt2025} & No & No & No & No & No (Simulated) \\
+\textbf{OkNexus (this work)} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Research Gaps Addressed}
+
+The literature review identifies four principal research gaps that OkNexus addresses:
+
+\begin{enumerate}
+    \item \textbf{Autonomous retesting}: No existing published system focuses on autonomous verification of vulnerability remediations. OkNexus introduces a purpose-built retesting engine as its primary innovation.
+
+    \item \textbf{RAG-grounded security report composition}: The application of scoped RAG to AI-assisted finding documentation within a complete reporting platform has not been explored in prior work.
+
+    \item \textbf{Closed action vocabulary for security agents}: Prior agentic security systems do not systematically address the design of typed, schema-validated action vocabularies for security automation, which OkNexus implements as a core reliability and safety mechanism.
+
+    \item \textbf{Real-time auditable verification}: Prior autonomous agents do not provide a per-turn streaming trace of reasoning and actions to a human-facing interface, limiting their usefulness in professional consulting contexts.
+\end{enumerate}

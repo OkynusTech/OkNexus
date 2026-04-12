@@ -1,0 +1,70 @@
+\documentclass[12pt,openright]{report}
+\usepackage{nfsu-report}
+\usepackage[numbers]{natbib}
+
+% Fix header height to prevent overflow into text body
+\setlength{\headheight}{49.87462pt}
+\addtolength{\topmargin}{-37.87462pt}
+
+%---------- Project Details ----------
+\setProjectTitle{OkNexus: An AI-Aware Vulnerability Reporting and Autonomous Retesting Platform}
+\setReportType{Project Report}
+\setHonorific{Mr}
+\setStudentName{Aarsh Chaurasia}
+\setEnrollmentNo{012200300004003}
+\setProgramName{B.Tech.-M.Tech. Computer Science \& Engineering}
+\setProgramSemester{VIII}
+\setSchoolName{School of Cyber Security and Digital Forensics}
+\setSupervisorName{Dr. Vijeta Khare}
+\setSupervisorDesig{Assistant Professor}
+\setCampusAdress{Gandhinagar}{382007}{Gujarat}{India}
+\setReportMonthYear{April, 2026}
+\setReportPeriod{January 2026}{April 2026}
+
+\input{./glossary/glossary}
+
+\begin{document}
+    \MakeTitlePage
+    \clearpage
+    \pagenumbering{Roman}
+    \setcounter{page}{2}
+    \MakeDeclarationPage
+    \clearpage
+    \MakeGuideCertificate
+    \clearpage
+    \MakeCertificate
+    \clearpage
+    \pagestyle{NFSUPageHFStyle}
+    \NFSUWatermarkOn
+    \input{./ack/ack}
+    \clearpage
+    \input{./abstract/abstract}
+    \clearpage
+    \MakeListOfAbbreviations
+    \clearpage
+    \MakeListOfTables
+    \clearpage
+    \MakeListOfFigures
+    \clearpage
+    \MakeTOC
+    \clearpage
+    \pagenumbering{arabic}
+    \pagestyle{NFSUPageHFStyle}
+    \NFSUWatermarkOn
+    \input{./Chapter1/chapter1}
+    \clearpage
+    \input{./Chapter2/chapter2}
+    \clearpage
+    \input{./Chapter3/chapter3}
+    \clearpage
+    \input{./Chapter4/chapter4}
+    \clearpage
+    \input{./Chapter5/chapter5}
+    \clearpage
+    \input{./Chapter6/chapter6}
+    \clearpage
+    \input{./Chapter7/chapter7}
+    \clearpage
+    \bibliographystyle{IEEEtran}
+    \bibliography{mybib}
+\end{document}

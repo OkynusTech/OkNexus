@@ -18,7 +18,8 @@ export type AssessmentType =
   | 'Architecture Review'
   | 'Security Review'
   | 'Cloud Security Assessment'
-  | 'Network Security Assessment';
+  | 'Network Security Assessment'
+  | 'Mobile Security Assessment';
 
 export type AttackSurface = 'Web' | 'API' | 'Mobile' | 'Cloud' | 'Network' | 'Infrastructure';
 

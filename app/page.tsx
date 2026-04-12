@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
 import { Plus, FileText, Settings, Download, LogOut, User, Building2, Users, Folder, Trash2, TrendingUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,7 +11,6 @@ import { SeverityBadge } from '@/components/ui/severity-badge';
 import { Engagement, ServiceProviderProfile, ClientProfile } from '@/lib/types';
 
 export default function Dashboard() {
-  const { data: session } = useSession();
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [serviceProviders, setServiceProviders] = useState<ServiceProviderProfile[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
