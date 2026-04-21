@@ -28,7 +28,9 @@ import traceback
 from datetime import datetime
 
 import dotenv
-dotenv.load_dotenv(dotenv.find_dotenv(".env.local"))
+# Load .env.local first (takes priority), then fall back to .env
+dotenv.load_dotenv(dotenv.find_dotenv(".env.local"), override=False)
+dotenv.load_dotenv(dotenv.find_dotenv(".env"), override=False)
 
 from flask import Flask, request, jsonify, Response
 

@@ -18,16 +18,18 @@ from typing import Any
 
 from .agent_brain import AgentBrain, AgentTurn
 from .auth import setup_auth
-from .page_state import extract_page_state, state_to_text
+from .page_state import extract_page_state, state_to_text, focused_state_to_text
 from .executor import browser_session, _take_screenshot, ExecutionResult
 from .state_machine import RetestFSM
+from .recovery import smart_fill, smart_click, safe_navigate, safe_evaluate, verify_login_success
+from .quick_check import quick_check
 from .config import (
     MAX_AGENT_TURNS, BROWSER_TIMEOUT_MS,
     XSS_MARKER_PAYLOAD, XSS_MARKER_EXPR,
 )
 from .decision import (
     check_idor, check_xss, check_open_redirect,
-    check_auth_bypass, check_login_success,
+    check_auth_bypass,
 )
 from .logger import get_logger
 
@@ -82,6 +84,55 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
         if not credentials.get("cookies"):
             return _abort("missing cookies for cookie auth")
 
+    # ── QUICK CHECK PRE-FLIGHT ─────────────────────────────────────────────────
+    # For URL-based vulns (IDOR, Open Redirect, Auth Bypass, Reflected XSS):
+    # Try a direct HTTP request BEFORE launching the browser or calling the LLM.
+    # If conclusive → return verdict immediately (0 LLM tokens, <1 second).
+    # If inconclusive → fall through to full agentic loop below.
+    quick_verdict = quick_check(
+        vuln_type=vuln_type,
+        target_url=target_url,
+        credentials=credentials,
+        steps_to_reproduce=steps,
+    )
+    if quick_verdict:
+        log.info(
+            f"[quick_check] Pre-flight conclusive: {quick_verdict['status']} "
+            f"(confidence={quick_verdict['confidence']:.2f}) — skipping full agent loop"
+        )
+        evidence = _empty_evidence()
+        evidence["details"] = {
+            "confidence": quick_verdict["confidence"],
+            "reason": quick_verdict["summary"],
+            "reasoning_chain": "Determined by HTTP pre-flight check (no LLM used).",
+            "turns_used": 0,
+            "max_turns": 0,
+            "agent_turns": [],
+            "source": "quick_check",
+        }
+        status = _map_verdict(quick_verdict)
+        result = _output(retest_id, status, evidence)
+        if event_bus:
+            event_bus.emit("verdict", {
+                "status": quick_verdict["status"],
+                "confidence": quick_verdict["confidence"],
+                "summary": quick_verdict["summary"],
+            })
+            event_bus.emit("complete", result)
+        return result
+
+    log.info("[quick_check] Pre-flight inconclusive — launching full agentic loop")
+
+    # ── REFLECTED XSS BROWSER SHORTCUT (No LLM) ───────────────────────────────
+    # If the URL already contains our XSS marker, we don't need to ask the LLM
+    # what action to take — we KNOW the action is "navigate then eval JS".
+    # Skip the entire LLM loop and just do: navigate → check marker → verdict.
+    if vuln_type == "REFLECTED_XSS" and "__xss_oknexus" in target_url:
+        log.info("[rxss_shortcut] Marker URL detected — using browser shortcut (no LLM)")
+        xss_verdict = await _reflected_xss_browser_check(target_url, retest_id, event_bus)
+        if xss_verdict:
+            return xss_verdict
+
     # -- Initialize agent brain --
     xss_payload = XSS_MARKER_PAYLOAD if vuln_type == "STORED_XSS" else ""
     try:
@@ -94,6 +145,7 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
         )
     except EnvironmentError as exc:
         return _abort(str(exc))
+
 
     # -- Run agent loop inside browser session --
     async with browser_session() as (page, context, exec_result):
@@ -141,9 +193,10 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
             _emit("turn_start", {"turn": turn_num, "max_turns": effective_max_turns})
 
             # OBSERVE: extract current page state
+            stage_name = fsm.current_stage().name
             try:
                 state = await extract_page_state(page, context, last_response)
-                state_text = state_to_text(state)
+                state_text = focused_state_to_text(state, stage_name)
             except Exception as exc:
                 log.warning(f"State extraction error: {exc}")
                 # Fallback: minimal state with just the URL
@@ -175,6 +228,17 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
 
             action_type = action.get("action", "")
             reasoning = action.get("reasoning", "")
+
+            if not fsm.is_action_allowed(action_type):
+                allowed = sorted(fsm.allowed_actions_for_current_stage())
+                action_result = (
+                    f"ERROR: Action '{action_type}' is not allowed in stage '{fsm.current_stage().name}'. "
+                    f"Allowed actions: {allowed}."
+                )
+                log.warning(f"  FSM Guardrail: {action_result}")
+                brain.feed_action_result(action_result)
+                continue
+
             log.info(f"  Action: {action_type} | Reasoning: {reasoning[:120]}")
             _emit("turn_action", {
                 "turn": turn_num,
@@ -263,10 +327,7 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
             # If it failed, abort immediately — wrong verdicts are worse than no verdict.
             if not login_verified and turn_num <= 3 and action_type in ("click", "fill"):
                 try:
-                    state_now = await extract_page_state(page, context, last_response)
-                    login_ok = check_login_success(
-                        state_now.cookies, state_now.visible_text
-                    )
+                    login_ok, login_reason = await verify_login_success(page, context)
                     if not login_ok:
                         log.warning(
                             "  [AUTH] Login appears to have failed — aborting retest "
@@ -280,12 +341,12 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
                                 "Authentication failed. Cannot determine vulnerability status "
                                 "without a valid session."
                             ),
-                            "reasoning": "Login failure detected after credential submission.",
+                            "reasoning": f"Login failure detected after credential submission. Reason: {login_reason}",
                         }
                         break
                     else:
                         login_verified = True
-                        log.info("  [AUTH] Login confirmed — continuing retest.")
+                        log.info(f"  [AUTH] Login confirmed — continuing retest. ({login_reason})")
                 except Exception as exc:
                     log.warning(f"  [AUTH] Could not verify login state: {exc}")
 
@@ -401,26 +462,32 @@ async def _do_execute_action(page, context, action: dict) -> str:
 
     if atype == "navigate":
         url = action["url"]
-        resp = await page.goto(
-            url, timeout=BROWSER_TIMEOUT_MS,
-            wait_until="domcontentloaded"
-        )
-        status = resp.status if resp else "unknown"
-        return f"SUCCESS: Navigated to {url} (HTTP {status})"
+        ok, msg = await safe_navigate(page, url, timeout_ms=BROWSER_TIMEOUT_MS)
+        return msg
 
     elif atype == "fill":
         selector = action["selector"]
         value = action.get("value", "")
-        await page.wait_for_selector(selector, timeout=10000)
-        await page.fill(selector, value)
+        # Extract a human-readable field hint from the selector for smarter fallbacks
+        field_hint = action.get("field_hint", "")
+        if not field_hint:
+            # Parse hint from selector (e.g. "#username" or "[name='username']")
+            import re as _re
+            m = _re.search(r'[#\[](?:id=|name=|placeholder=)?([\w-]+)', selector)
+            field_hint = m.group(1) if m else ""
+        ok = await smart_fill(page, selector, value, field_hint=field_hint)
+        if not ok:
+            return f"ERROR: Could not fill field '{selector}' (tried 4 fallback strategies)"
         display = "***" if "password" in selector.lower() else value[:50]
         return f"SUCCESS: Filled '{selector}' with '{display}'"
 
     elif atype == "click":
         selector = action["selector"]
-        await page.wait_for_selector(selector, timeout=10000)
-        await page.click(selector)
+        text_hint = action.get("text_hint", "")
+        ok = await smart_click(page, selector, text_hint=text_hint)
         await asyncio.sleep(1)  # brief wait for navigation/response
+        if not ok:
+            return f"ERROR: Could not click '{selector}' (tried 4 fallback strategies)"
         return f"SUCCESS: Clicked '{selector}'. Page now at {page.url}"
 
     elif atype == "api_request":
@@ -452,7 +519,7 @@ async def _do_execute_action(page, context, action: dict) -> str:
 
     elif atype == "evaluate_js":
         expr = action["expression"]
-        result = await page.evaluate(expr)
+        result = await safe_evaluate(page, expr, default=None)
         return f"SUCCESS: evaluate('{expr}') returned: {result!r}"
 
     elif atype == "wait":
@@ -557,6 +624,81 @@ async def _run_deterministic_check(
         return check_auth_bypass(http_status, response_body)
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# Reflected XSS Browser Shortcut (no LLM)
+# ---------------------------------------------------------------------------
+
+async def _reflected_xss_browser_check(
+    target_url: str,
+    retest_id: str,
+    event_bus=None,
+) -> dict | None:
+    """
+    Navigate to a Reflected XSS URL that already contains our marker payload,
+    evaluate window['__xss_oknexus'] in the browser, and return a verdict.
+
+    No LLM involved — just: launch browser → navigate → eval JS → verdict.
+    Returns a full result dict on success, None if something goes wrong
+    (caller falls through to full agent loop).
+    """
+    try:
+        async with browser_session() as (page, ctx, exec_result):
+            ok, nav_msg = await safe_navigate(page, target_url, timeout_ms=BROWSER_TIMEOUT_MS)
+            if not ok:
+                log.warning(f"[rxss_shortcut] Navigation failed: {nav_msg}")
+                return None
+
+            # Wait briefly for any scripts to execute
+            await asyncio.sleep(1.5)
+
+            # Evaluate our JS marker
+            marker_value = await safe_evaluate(page, XSS_MARKER_EXPR, default=None)
+            log.info(f"[rxss_shortcut] {XSS_MARKER_EXPR} = {marker_value!r}")
+
+            # Take a screenshot as evidence
+            await _take_screenshot(page, exec_result, "rxss_shortcut")
+
+            # Determine verdict from marker value
+            xss_fired = bool(marker_value)
+            verdict_dict = check_xss(1 if xss_fired else 0)
+            if not verdict_dict:
+                return None
+
+            verdict_dict["source"] = "rxss_browser_shortcut"
+            status = _map_verdict(verdict_dict)
+            evidence = {
+                "screenshots": exec_result.screenshots,
+                "logs": exec_result.logs,
+                "network_data": [],
+                "details": {
+                    "confidence": verdict_dict["confidence"],
+                    "reason": verdict_dict["summary"],
+                    "reasoning_chain": (
+                        f"Browser shortcut: navigated to marker URL, "
+                        f"evaluated {XSS_MARKER_EXPR} = {marker_value!r}. "
+                        f"No LLM used."
+                    ),
+                    "turns_used": 1,
+                    "max_turns": 1,
+                    "agent_turns": [],
+                    "source": "rxss_browser_shortcut",
+                },
+            }
+            result = _output(retest_id, status, evidence)
+            if event_bus:
+                event_bus.emit("verdict", {
+                    "status": verdict_dict["status"],
+                    "confidence": verdict_dict["confidence"],
+                    "summary": verdict_dict["summary"],
+                })
+                event_bus.emit("complete", result)
+            return result
+
+    except Exception as exc:
+        log.warning(f"[rxss_shortcut] Error, falling back to full agent: {exc}")
+        return None
 
 
 # ---------------------------------------------------------------------------

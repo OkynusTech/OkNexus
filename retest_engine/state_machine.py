@@ -8,6 +8,29 @@ The agent must complete one stage before moving to the next.
 
 from typing import List
 
+
+_ALL_ACTIONS = {
+    "navigate", "fill", "click", "api_request",
+    "evaluate_js", "wait", "verdict",
+    "extract_form_tokens", "check_redirect",
+    "next_stage",
+}
+
+_STAGE_ALLOWED_ACTIONS = {
+    "AUTHENTICATE": {
+        "navigate", "fill", "click", "wait", "evaluate_js",
+        "api_request", "extract_form_tokens", "next_stage",
+    },
+    "ACCESS_RESOURCE": {"navigate", "api_request", "wait", "evaluate_js", "next_stage"},
+    "INJECT_PAYLOAD": {"navigate", "fill", "click", "wait", "next_stage"},
+    "CHECK_REFLECTION": {"navigate", "evaluate_js", "click", "wait", "next_stage"},
+    "ACCESS_RESTRICTED": {"navigate", "api_request", "click", "wait", "evaluate_js", "next_stage"},
+    "TRIGGER_REDIRECT": {"check_redirect", "navigate", "click", "wait", "next_stage"},
+    "INJECT_SQL": {"api_request", "navigate", "fill", "click", "wait", "next_stage"},
+    "TEST_VULNERABILITY": _ALL_ACTIONS - {"verdict"},
+    "VERDICT": {"verdict"},
+}
+
 class Stage:
     def __init__(self, name: str, instruction: str):
         self.name = name
@@ -35,6 +58,15 @@ class RetestFSM:
 
     def is_finished(self) -> bool:
         return self.current_stage().name == "VERDICT"
+
+    def allowed_actions_for_current_stage(self) -> set[str]:
+        """Return the allowed action set for the current stage."""
+        stage_name = self.current_stage().name
+        return _STAGE_ALLOWED_ACTIONS.get(stage_name, _ALL_ACTIONS)
+
+    def is_action_allowed(self, action: str) -> bool:
+        """Return True if action is allowed in the current stage."""
+        return action in self.allowed_actions_for_current_stage()
 
     def _build_stages(self, vuln_type: str) -> List[Stage]:
         stages = []

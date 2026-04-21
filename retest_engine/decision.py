@@ -26,13 +26,15 @@ _ACCESS_DENIED_KEYWORDS = [
     "unauthorized", "forbidden", "access denied",
     "not allowed", "permission denied", "you don't have permission",
     "invalid token", "authentication required",
+    "do not own", "you do not own", "not authorized",
+    "access restricted", "insufficient privileges",
 ]
 
-# Keywords that suggest real user data was exposed (IDOR not fixed)
+# Keywords that suggest real user data was exposed (as JSON field names)
 _DATA_LEAK_KEYWORDS = [
     "ssn", "social security", "password", "credit card",
-    "secret_key", "private", "confidential", "email",
-    "phone", "address", "date_of_birth",
+    "secret_key", "confidential", "email",
+    "phone", "date_of_birth", "owner",  # owner = cross-user data leak in IDOR
 ]
 
 
@@ -74,9 +76,14 @@ def check_idor(http_status: int, response_body: str) -> dict | None:
             ),
         }
 
-    # Clear signal: HTTP 200 + sensitive data keywords in body → NOT FIXED
+    # Clear signal: HTTP 200 + sensitive data in JSON field format → NOT FIXED
+    # Use "fieldname": pattern (not bare keyword) to avoid false positives from
+    # HTML form labels, hint text like "enter your password", or page boilerplate.
     if http_status == 200 and len(response_body) > 50:
-        leaked = [kw for kw in _DATA_LEAK_KEYWORDS if kw in body_lower]
+        leaked = [
+            kw for kw in _DATA_LEAK_KEYWORDS
+            if f'"{kw}":' in body_lower or f"'{kw}':" in body_lower
+        ]
         if leaked:
             log.info(f"[IDOR] Deterministic: HTTP 200 + leaked fields {leaked} → NOT FIXED")
             return {
@@ -204,15 +211,24 @@ def check_auth_bypass(http_status: int, response_body: str) -> dict | None:
             ),
         }
 
-    # Got in AND accessing something sensitive → NOT FIXED
+    # Got in AND accessing something clearly privileged → NOT FIXED
+    privileged_signals = ["secret_key", "admin panel", "admin dashboard", "is_admin", "role\":\"admin"]
+    protected_signals = ["restricted", "internal only", "confidential", "privileged"]
+    deny_or_login_signals = ["login", "sign in", "unauthorized", "forbidden", "access denied"]
+
     if http_status == 200:
-        if any(kw in body_lower for kw in ["secret_key", "admin", "dashboard", "restricted"]):
-            log.info("[AUTH_BYPASS] Deterministic: HTTP 200 + admin content → NOT FIXED")
+        strong_hits = sum(1 for kw in privileged_signals if kw in body_lower)
+        weak_hits = sum(1 for kw in protected_signals if kw in body_lower)
+        if (strong_hits >= 1 and weak_hits >= 1) or strong_hits >= 2:
+            if any(kw in body_lower for kw in deny_or_login_signals):
+                log.info("[AUTH_BYPASS] Deterministic: conflicting 200 response signals → inconclusive")
+                return None
+            log.info("[AUTH_BYPASS] Deterministic: HTTP 200 + privileged content signatures → NOT FIXED")
             return {
                 "status": "not_fixed",
-                "confidence": 0.85,
+                "confidence": 0.90,
                 "summary": (
-                    "Successfully accessed a protected resource (HTTP 200 with privileged content). "
+                    "Successfully accessed a protected resource (HTTP 200 with privileged application content). "
                     "Auth bypass vulnerability is still present."
                 ),
             }
@@ -264,6 +280,6 @@ def check_login_success(cookies: list[dict], visible_text: str) -> bool:
         log.info("[AUTH] Success keyword detected in page text → login likely successful")
         return True
 
-    # No clear signal — assume it worked (let the orchestrator continue)
-    log.info("[AUTH] Login status unclear — assuming success")
-    return True
+    # No clear signal — fail closed to avoid false confidence.
+    log.info("[AUTH] Login status unclear — treating as not verified")
+    return False
