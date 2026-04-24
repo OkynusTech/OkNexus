@@ -40,6 +40,10 @@ Supported actions:
    {"action": "check_redirect", "url": "http://...", "reasoning": "why"}
    Returns the final URL the browser ended up at. Useful for testing open redirect vulnerabilities.
 
+10. next_stage: Advance to the next stage in the verification plan.
+    {"action": "next_stage", "reasoning": "why the goals for this stage are met"}
+    Use this ONLY when you are completely finished with the current stage's objective.
+
 IMPORTANT: "not_fixed" means the vulnerability STILL EXISTS. "verified" means the fix WORKS and the vuln is gone.
 """
 
@@ -47,4 +51,5 @@ VALID_ACTIONS = {
     "navigate", "fill", "click", "api_request",
     "evaluate_js", "wait", "verdict",
     "extract_form_tokens", "check_redirect",
+    "next_stage",
 }

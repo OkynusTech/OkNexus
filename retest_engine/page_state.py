@@ -165,46 +165,89 @@ async def extract_page_state(
 
 
 def state_to_text(state: PageState) -> str:
-    """Format PageState as a concise text block for the LLM."""
-    parts = []
-    parts.append(f"URL: {state.url}")
-    parts.append(f"TITLE: {state.title}")
+    """Format PageState as a full text block for the LLM."""
+    return _state_to_text(state)
 
-    if state.last_network_response:
+
+def focused_state_to_text(state: PageState, stage_name: str) -> str:
+    """
+    Stage-aware formatter to reduce token usage and noise.
+    """
+    stage = (stage_name or "").upper()
+
+    include = {
+        "url", "title", "last_network_response", "error",
+    }
+
+    if stage == "AUTHENTICATE":
+        include.update({"visible_text", "form_fields", "buttons", "cookies"})
+    elif stage in {"ACCESS_RESOURCE", "ACCESS_RESTRICTED", "INJECT_SQL"}:
+        include.update({"last_network_response", "visible_text", "cookies"})
+    elif stage in {"INJECT_PAYLOAD", "CHECK_REFLECTION"}:
+        include.update({"visible_text", "form_fields", "buttons", "cookies"})
+    elif stage == "TRIGGER_REDIRECT":
+        include.update({"visible_text", "links"})
+    elif stage == "VERDICT":
+        include.update({"visible_text", "cookies", "dom_summary"})
+    else:
+        include.update({
+            "visible_text", "form_fields", "buttons",
+            "links", "cookies", "dom_summary",
+            "response_headers", "console_errors", "meta_tags",
+        })
+
+    return _state_to_text(state, include)
+
+
+def _state_to_text(state: PageState, include: set[str] | None = None) -> str:
+    """Internal formatter with selectable fields."""
+    include = include or {
+        "url", "title", "last_network_response", "visible_text",
+        "form_fields", "buttons", "links", "cookies", "dom_summary",
+        "response_headers", "console_errors", "meta_tags", "error",
+    }
+
+    parts = []
+    if "url" in include:
+        parts.append(f"URL: {state.url}")
+    if "title" in include:
+        parts.append(f"TITLE: {state.title}")
+
+    if "last_network_response" in include and state.last_network_response:
         r = state.last_network_response
         parts.append(f"LAST_RESPONSE: HTTP {r.get('status', '?')} {r.get('url', '')}")
         body = r.get("body_snippet", "")
         if body:
             parts.append(f"RESPONSE_BODY: {body[:500]}")
 
-    if state.visible_text:
+    if "visible_text" in include and state.visible_text:
         parts.append(f"VISIBLE_TEXT:\n{state.visible_text}")
 
-    if state.form_fields:
+    if "form_fields" in include and state.form_fields:
         parts.append(f"FORM_FIELDS: {json.dumps(state.form_fields)}")
 
-    if state.buttons:
+    if "buttons" in include and state.buttons:
         parts.append(f"BUTTONS: {json.dumps(state.buttons)}")
 
-    if state.links:
+    if "links" in include and state.links:
         links_brief = [{"text": l["text"], "href": l["href"]} for l in state.links[:10]]
         parts.append(f"LINKS: {json.dumps(links_brief)}")
 
-    if state.cookies:
+    if "cookies" in include and state.cookies:
         cookie_str = ", ".join(f"{c['name']}={c['value']}" for c in state.cookies)
         parts.append(f"COOKIES: {cookie_str}")
 
-    if state.dom_summary:
+    if "dom_summary" in include and state.dom_summary:
         parts.append(f"DOM_SUMMARY: {state.dom_summary}")
 
-    if state.response_headers:
+    if "response_headers" in include and state.response_headers:
         headers_str = ", ".join(f"{k}: {v}" for k, v in state.response_headers.items())
         parts.append(f"SECURITY_HEADERS: {headers_str}")
 
-    if state.console_errors:
+    if "console_errors" in include and state.console_errors:
         parts.append(f"CONSOLE_ERRORS: {'; '.join(state.console_errors[-5:])}")
 
-    if state.error:
+    if "error" in include and state.error:
         parts.append(f"EXTRACTION_ERROR: {state.error}")
 
     return "\n".join(parts)

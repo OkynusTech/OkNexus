@@ -217,10 +217,14 @@ class AgentBrain:
         parts.append("You are now on a blank page (about:blank). Take your first action.")
         return "\n".join(parts)
 
-    def decide_next_action(self, page_state_text: str) -> dict:
+    def decide_next_action(self, page_state_text: str, stage_name: str = "", stage_instruction: str = "") -> dict:
         """Send current page state to LLM and get next action."""
+        stage_context = ""
+        if stage_name:
+            stage_context = f"## Current FSM Stage: {stage_name}\n**GOAL**: {stage_instruction}\nUse the 'next_stage' action ONLY when this is completely achieved.\n\n"
+
         observation = (
-            f"## Observation (Turn {len(self.turns) + 1})\n\n"
+            f"{stage_context}## Observation (Turn {len(self.turns) + 1})\n\n"
             f"{page_state_text}\n\n"
             f"Decide your next action. Respond with a single JSON object."
         )
